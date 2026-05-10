@@ -32,7 +32,15 @@ class MyClass {
 
 };
 
-
+// what my server must store per client 
+// int fd
+// string ip_addr
+// string nickname (max 9 chars)
+// string username
+// string realname
+// bool registerd flag 
+// string buffer for partial msgs
+// list of channels this client is in (array/list of channel pointers or names)
 
 int main(int counter , char **vectors) {
 	MyClass Obj;
