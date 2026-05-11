@@ -1,9 +1,11 @@
 #include <iostream>
-#include <cstring>
-#include <cstdlib>
-#include <sys/socket.h>
-#include <fstream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 using namespace std;
 
 // we should create 2 calsses 1 for server and 1 for client 
@@ -45,11 +47,39 @@ class MyClass {
 // list of channels this client is in (array/list of channel pointers or names)
 
 int main() {
-	int servsocket = socket(AF_INET , SOCK_STREAM , 0);
-	if(servsocket == -1)
-		cout << "error" << endl;
-	cout << "socket created successfulty with fd " << servsocket << endl;
-	return 0;
+   struct addrinfo hints, *res;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+
+    getaddrinfo(NULL, "6667", &hints, &res);
+
+    int server_fd = socket(
+        res->ai_family,
+        res->ai_socktype,
+        res->ai_protocol
+    );
+
+    int yes = 1;
+    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+
+    bind(server_fd, res->ai_addr, res->ai_addrlen);
+
+    listen(server_fd, 10);
+
+    printf("Waiting for client...\n");
+
+    int client_fd = accept(server_fd, NULL, NULL);
+
+    printf("Client connected!\n");
+
+    close(client_fd);
+    close(server_fd);
+
+    freeaddrinfo(res);
+
+    return 0;
 }
 
 /*
