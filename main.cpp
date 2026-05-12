@@ -1,11 +1,15 @@
 #include <iostream>
 #include <stdio.h>
+#include <poll.h>
 #include <stdlib.h>
+#include <sys/select.h>
 #include <string.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <sys/socket.h>
+#include <netdb.h>
 #include <netinet/in.h>
+#include <signal.h>
 using namespace std;
 
 // we should create 2 calsses 1 for server and 1 for client 
@@ -46,42 +50,74 @@ class MyClass {
 // string buffer for partial msgs
 // list of channels this client is in (array/list of channel pointers or names)
 
-int main() {
-   struct addrinfo hints, *res;
+
+int main(int counter , char **vectors) {
+    if(counter < 3) 
+	    return 1;
+    int port  = atoi(vectors[1]);
+    char *pass = vectors[2];
+    struct addrinfo hints, *res;
+    struct pollfd *fds;
+    nfds_t nfds;
+    fd_set *read_fds , *write_fds;
+    struct timeval *timeout;
+    int retval;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
-
+	
     getaddrinfo(NULL, "6667", &hints, &res);
 
-    int server_fd = socket(
-        res->ai_family,
-        res->ai_socktype,
-        res->ai_protocol
-    );
-
+    int server_fd = socket(res->ai_family,
+                           res->ai_socktype,
+                           res->ai_protocol);
     int yes = 1;
     setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
 
     bind(server_fd, res->ai_addr, res->ai_addrlen);
-
     listen(server_fd, 10);
+    std::cout << "Waiting for client...\n";
+    while (true) {
+        int client_fd = accept(server_fd, NULL, NULL);
 
-    printf("Waiting for client...\n");
+        if (client_fd < 0) {
+            perror("accept");
+            continue;
+        }
 
-    int client_fd = accept(server_fd, NULL, NULL);
+        std::cout << "Client connected!\n";
 
-    printf("Client connected!\n");
+        char buffer[1024];
 
-    close(client_fd);
+        while (true) {
+            memset(buffer, 0, sizeof(buffer));
+
+            int bytes = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+
+            if (bytes <= 0 ) {
+                std::cout << "Client disconnected\n";
+                break;
+            }
+
+            std::cout << "Client says: " << buffer << std::endl;
+        }
+	poll(fds , nfds , 1);
+	retval = select(1 , read_fds , write_fds , NULL , NULL);
+        if(retval == -1)
+		cout << "select()\n";
+	else if (retval)
+		printf("Data is availlable now \n");
+	else
+		printf("No data withing 5 seconds");
+	close(client_fd);
+    }
+
     close(server_fd);
-
     freeaddrinfo(res);
 
     return 0;
 }
-
 /*
 int main(int counter , char **vectors) {
 	MyClass Obj;
@@ -90,7 +126,6 @@ int main(int counter , char **vectors) {
 		return 1;
 	int port = atoi(vectors[1]);
 	string pass = vectors[2];
-	
 	cout << Obj.Get_port(port) << endl;
 	cout << Obj.Get_pass(pass) << endl;
 	if(port > 2147483647 || port < -2147483648)	
