@@ -9,15 +9,17 @@
 
 
 typedef struct s_ClientData {
-  bool m_has_pwd = false;
-  bool m_has_nick = false;
-  bool m_has_user = false;
-  bool m_is_registred = false;
+  bool m_has_pwd;
+  bool m_has_nick;
+  bool m_has_user;
+  bool m_is_registred;
 
   std::string m_nickname;
   std::string m_username;
   std::string m_realname;
   std::string m_hostname; // just the ip 
+  s_ClientData() : m_has_pwd(false), m_username(false),
+                   m_realname(false), m_hostname(false) {}
 } t_ClientData;
 
 class Client {
@@ -35,8 +37,7 @@ public:
   ~Client();
 
   int getFd() const;
-  t_ClientData getData() const;
-  void SetData(t_ClientData &data) const;
+  t_ClientData& getData();
   std::string extractCommad(); 
   void addChannel(Channel *ch);
   void removeChannel(Channel *ch);
