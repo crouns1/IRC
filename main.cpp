@@ -3,7 +3,8 @@
 #include <poll.h>
 #include <stdlib.h>
 #include <sys/select.h>
-#include <string.h>
+#include <string>
+#include <cstring>
 #include <unistd.h>
 #include <netdb.h>
 #include <sys/socket.h>
@@ -15,7 +16,7 @@ using namespace std;
 int main(int counter , char **vectors) {
     if(counter < 3) 
 	    return 1;
-    int port  = atoi(vectors[1]);
+   	char *port  = vectors[1];
     char *pass = vectors[2];
     struct addrinfo hints, *res;
     struct pollfd *fds;
@@ -25,7 +26,7 @@ int main(int counter , char **vectors) {
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
 	
-    getaddrinfo(NULL, vectors[1], &hints, &res);
+    getaddrinfo(NULL, port, &hints, &res);
 
     int server_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     int yes = 1;
