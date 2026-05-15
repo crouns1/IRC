@@ -25,7 +25,7 @@ typedef struct s_ClientData {
 class Client {
 private: 
   int m_fd;
-  std::string m_ip_address;
+  std::string m_ip_addr;
   std::string m_read_buffer;
   std::string m_write_buffer;
 
