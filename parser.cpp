@@ -1,18 +1,8 @@
-#include <iostream>
-#include <string>
-#include <vector>
-#include <map>
-#include <sstream>
-struct command {
-  std::string name;
-  std::vector<std::string> params;
-  bool hasTrailing;
-  std::string trailing;
-};
+#include "tools.cpp"
 
-
-void parser(std::string input, command &cmd)
+command parser(std::string input)
 {
+  command cmd;
   size_t trailing = 0;
   if (!input.empty() && input[input.size() - 1] == '\n')
     input.erase(input.size() - 1);
@@ -30,7 +20,7 @@ void parser(std::string input, command &cmd)
     {
       std::stringstream ss(rest);
       while (ss >> param)
-        cmd.params.push_back(param);
+        cmd.params.push_back(param);  
       cmd.hasTrailing = false;
     }
     else {
@@ -42,6 +32,7 @@ void parser(std::string input, command &cmd)
       cmd.hasTrailing = true;
     }
   }
+  return cmd;
 }
 
 void printstruct(command& cmd)
@@ -61,13 +52,3 @@ void printstruct(command& cmd)
 }
 
 
-int main(void)
-{
-  std::string input1 = "PASS secret123 param2 param3";
-  std::string input2 = "PASS secrete123 para1 : this is message";
-  command cmd;
-  //parser(input1, cmd);
-  parser(input2, cmd);
-  printstruct(cmd);
-  return 0;
-}

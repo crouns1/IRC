@@ -12,7 +12,7 @@ typedef struct s_ClientData {
   bool m_has_pwd;
   bool m_has_nick;
   bool m_has_user;
-  bool m_is_registred;
+  bool m_Auth;
 
   std::string m_nickname;
   std::string m_username;
@@ -26,21 +26,24 @@ class Client {
 private: 
   int m_fd;
   std::string m_ip_addr;
-  std::string m_read_buffer;
-  std::string m_write_buffer;
+  //std::string m_read_buffer;
+  //std::string m_write_buffer;
 
   t_ClientData m_data;
 
-  std::vector<Channel*> m_joined_channels;
+  //std::vector<Channel*> m_joined_channels;
 public:
   Client(int fd, std::string ip_address);
   ~Client();
 
   int getFd() const;
+  //int IsAutth() ;
   t_ClientData& getData();
-  std::string extractCommad(); 
-  void addChannel(Channel *ch);
-  void removeChannel(Channel *ch);
+  //std::string extractCommad();
+  void setAuth(bool auth);
+  //void addChannel(Channel *ch);
+  //void removeChannel(Channel *ch);
+  void  setData(t_ClientData& cltdata);
 };
 
 #endif
