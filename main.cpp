@@ -8,7 +8,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <cstring>
-
+#include <cstdlib>
 void fillClient(Client *client) // this should be partially with the server. 
 {
   t_ClientData cltdata;
@@ -18,11 +18,18 @@ void fillClient(Client *client) // this should be partially with the server.
   cltdata.m_hostname = "1.1.1.1.1";
   client->setData(cltdata);
 }
-#define PORT 8080
+
 #define BUFFER_SIZE 1024
 
-int main()
+int main(int ac, char **av)
 {
+  if (ac != 3) 
+  {
+    std::cerr << "Usage: " << av[0] << " <port> <password>" << std::endl;
+    return 1;
+  } 
+    std::string password = av[2]; 
+    int PORT = std::atoi(av[1]);
     int serverFd = socket(AF_INET, SOCK_STREAM, 0);
     if (serverFd < 0)
     {
