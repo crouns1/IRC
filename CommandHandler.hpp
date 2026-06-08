@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include "Client.hpp"
+#include "tools.hpp"
 
 class CommandHandler
 {

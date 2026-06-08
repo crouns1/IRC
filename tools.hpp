@@ -7,7 +7,7 @@
 #include <map>
 #include <sstream>
 
-struct command {
+struct Command {
   std::string name;
   std::vector<std::string> params;
   bool hasTrailing;
@@ -15,6 +15,6 @@ struct command {
 };
 
 
-command parser(std::string input);
-void printstruct(command& cmd); 
+Command parser(std::string input);
+void printstruct(Command& cmd); 
 #endif

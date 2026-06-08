@@ -18,32 +18,37 @@ typedef struct s_ClientData {
   std::string m_username;
   std::string m_realname;
   std::string m_hostname; // just the ip 
-  s_ClientData() : m_has_pwd(false), m_username(false),
-                   m_realname(false), m_hostname(false) {}
+  s_ClientData() : m_has_pwd(false), m_has_nick(false), m_has_user(false), m_Auth(false),
+                   m_nickname("n"), m_username(""), m_realname(""), m_hostname("") {}
 } t_ClientData;
 
 class Client {
 private: 
   int m_fd;
   std::string m_ip_addr;
+  t_ClientData m_data;
   //std::string m_read_buffer;
   //std::string m_write_buffer;
 
-  t_ClientData m_data;
 
   //std::vector<Channel*> m_joined_channels;
 public:
   Client(int fd, std::string ip_address);
-  ~Client();
+  ~Client(){};
 
-  int getFd() const;
-  //int IsAutth() ;
-  t_ClientData& getData();
+  int getFd() const; // DONE
+  int IsAuth(); // DONE 
+  t_ClientData& getData(); // DONE
+  void setAuth(bool auth); // DONE
+  void  setData(t_ClientData& cltdata);
+  int sendMessage(const std::string& message) {
+    
+    std::cout << "Sending to client " << m_fd << ": " << message << std::endl;
+    return 0; 
+  }
   //std::string extractCommad();
-  void setAuth(bool auth);
   //void addChannel(Channel *ch);
   //void removeChannel(Channel *ch);
-  void  setData(t_ClientData& cltdata);
 };
 
 #endif

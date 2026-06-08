@@ -1,27 +1,26 @@
 #include "CommandHandler.hpp"
-
-
+#include "tools.hpp"
 
 CommandHandler::CommandHandler()
 {
-  m_handler["PASS"] = &CommandHandler::handlePass;
+  m_handle["PASS"] = &CommandHandler::handlePass;
 }
 
 void CommandHandler::dispatch(Client *client, const Command& cmd)
 {
-  std::map<std::string, CmdFct>::iterator it = m_handler.find(cmd.name);
-  if (it != m_handler.end())
+  std::map<std::string, CmdFct>::iterator it = m_handle.find(cmd.name);
+  if (it != m_handle.end())
     (this->*(it->second))(client, cmd);
   else 
     client->sendMessage("421" + cmd.name + " :Unknown Command");
 }
 
-void CommandHandler::handlerPass(Clien *client, const Command& cmd)
+void CommandHandler::handlePass(Client *client, const Command& cmd)
 {
   if (client->IsAuth()) // The client is already in !
   {
     client->sendMessage("462 : No need to sign up Queen/king ");
-    return ;
+    return ; 
   }
   if (cmd.params.empty())
   {
@@ -30,7 +29,7 @@ void CommandHandler::handlerPass(Clien *client, const Command& cmd)
   }
 
   std::string pwd;
-  if (cmd.has_trailing && !cmd.trailing.empty())
+  if (cmd.hasTrailing && !cmd.trailing.empty())
     pwd = cmd.trailing;
   else 
     pwd = cmd.params[0];
@@ -40,7 +39,6 @@ void CommandHandler::handlerPass(Clien *client, const Command& cmd)
   else {
     client->sendMessage("464 : Password incorrect");
   }
-    
 }
 
 

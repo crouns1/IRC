@@ -1,8 +1,8 @@
-#include "tools.cpp"
+#include "tools.hpp"
 
-command parser(std::string input)
+Command parser(std::string input)
 {
-  command cmd;
+  Command cmd;
   size_t trailing = 0;
   if (!input.empty() && input[input.size() - 1] == '\n')
     input.erase(input.size() - 1);
@@ -35,7 +35,7 @@ command parser(std::string input)
   return cmd;
 }
 
-void printstruct(command& cmd)
+void printstruct(Command& cmd)
 {
   std::cout << "Name: " << cmd.name << std::endl;
   std::cout << "Prams: ";

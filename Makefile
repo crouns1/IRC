@@ -1,5 +1,5 @@
 NAME = parsing_IRC
-SRC = CommandHandler.cpp parsing.cpp main.cpp 
+SRC = CommandHandler.cpp parser.cpp main.cpp Client.cpp
 OBJS = $(SRC:.cpp=.o)
 CC = c++ 
 CFLAGS = -Wall -Wextra -Werror -g -std=c++98
