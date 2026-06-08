@@ -19,7 +19,7 @@ typedef struct s_ClientData {
   std::string m_realname;
   std::string m_hostname; // just the ip 
   s_ClientData() : m_has_pwd(false), m_has_nick(false), m_has_user(false), m_Auth(false),
-                   m_nickname("n"), m_username(""), m_realname(""), m_hostname("") {}
+                   m_nickname(""), m_username(""), m_realname(""), m_hostname("") {}
 } t_ClientData;
 
 class Client {

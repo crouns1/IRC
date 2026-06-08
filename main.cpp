@@ -18,10 +18,12 @@ void fillClient(Client *client) // this should be partially with the server.
 
 int main()
 {
-  std::string input = "PASS param1 param2 param3: this is a text";
+  std::string input = "HELP PASS param2 param3: this is a text";
   Client client(1, "1.1.1.1.1");
   fillClient(&client);
   Command cmd = parser(input);
-  printstruct(cmd);
+  CommandHandler handler;
+  handler.dispatch(&client, cmd);
+  //printstruct(cmd);
   return 0;
 }

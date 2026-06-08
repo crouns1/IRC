@@ -6,7 +6,6 @@ Client::Client(int fd, std::string ip_address)
   this->m_fd = fd;
   this->m_ip_addr = ip_address;
   std::cout << "Client is Set and Ready"<< std::endl;
-  std::cout << "nickname: " << m_data.m_nickname << std::endl;
 }
 int Client::getFd() const 
 {

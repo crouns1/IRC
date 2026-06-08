@@ -3,9 +3,28 @@
 
 CommandHandler::CommandHandler()
 {
+  m_handle["HELP"] = &CommandHandler::handleHelp;
   m_handle["PASS"] = &CommandHandler::handlePass;
 }
-
+void CommandHandler::handleHelp(Client* client, const Command &cmd)
+{
+  if (cmd.params.empty())
+  {
+    
+    client->sendMessage("Available commands: PASS, HELP");
+    client->sendMessage("The command PASS is used to authenticate the client");
+    client->sendMessage("The command HELP is used to get the list of available commands");
+  }
+  else if (cmd.params[0] == "PASS")
+  {
+    client->sendMessage("The command PASS is used to authenticate the client");
+    client->sendMessage("Usage: PASS <password>");
+  }
+  else if (cmd.params[0] == "HELP")
+    client->sendMessage("The command HELP is used to get the list of available commands");
+  else 
+    client->sendMessage("421 " + cmd.params[0] + " :Unknown command"); 
+}
 void CommandHandler::dispatch(Client *client, const Command& cmd)
 {
   std::map<std::string, CmdFct>::iterator it = m_handle.find(cmd.name);
@@ -26,6 +45,9 @@ void CommandHandler::handlePass(Client *client, const Command& cmd)
   {
     client->sendMessage("461 PASS : password missing");
     return ;
+  }
+  else {
+    client->sendMessage("OK PASS command received");
   }
 
   std::string pwd;

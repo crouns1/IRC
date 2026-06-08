@@ -14,6 +14,7 @@ private:
   typedef void (CommandHandler::*CmdFct)(Client*, const Command &);
   std::map<std::string, CmdFct> m_handle;
   
+  void handleHelp(Client* client, const Command &cmd);
   void handlePass(Client* client, const Command &cmd);
 public:
   CommandHandler();
