@@ -21,3 +21,16 @@
         // also you dont convert the commands to uppercase at all
         // also parser should handle multiple cmds like "parse("NICK john\r\nUSER jdoe") " should return 2 commands 
         // implement the rest cmds
+
+
+
+// for now the priority to (server need)
+	// channel system if this is not done so "no multi user communication at all"
+	// NICK / USER implementation : core reg
+	// message routing (PRIVMSG) "basic chat functionallity"
+	// password validation "for security reasons"
+	
+// (parsing need)
+	// multiple command parsing 
+	// case insensitive commands "irc standard requirement "
+	// command prefix support "needed for server to server and some clients"
