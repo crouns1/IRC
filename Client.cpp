@@ -1,5 +1,7 @@
 #include "Client.hpp"
-
+#include <sys/socket.h>
+#include <unistd.h>
+#include <iostream>
 
 Client::Client(int fd, std::string ip_address)
 {
@@ -32,4 +34,13 @@ int Client::IsAuth()
 void Client::setAuth(bool auth)
 {
   this->m_data.m_Auth = auth;
+}
+// had lpart rah kenti dayrha f lclass client 
+// ms knti dayrha katsift msg l stdout bhal hka sendmsg { "sending msg to client << m_fd" << ekatbee3 lmsg}
+// normallement khass lmsg itsift directly l client machui output
+int Client::sendMessage(const std::string& message) {
+    std::string fullMessage = message + "\r\n";
+    int result = send(m_fd, fullMessage.c_str(), fullMessage.length(), 0);
+    std::cout << "Sending to client " << m_fd << ": " << message << std::endl;
+    return result;
 }

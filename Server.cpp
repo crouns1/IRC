@@ -1,0 +1,205 @@
+#include "Server.hpp"
+#include <iostream>
+#include <cstring>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#define BUFFER_SIZE 1024
+#define MAX_CLIENTS 100
+
+Server::Server(int port, const std::string& password) 
+    : m_port(port), m_serverPassword(password), m_serverFd(-1), m_maxFd(0) {
+    FD_ZERO(&m_readFds);
+    FD_ZERO(&m_writeFds);
+}
+
+Server::~Server() {
+    // kaniterateiw bach ndiro Cleanup l all clients
+    for (std::map<int, Client*>::iterator it = m_clients.begin(); it != m_clients.end(); ++it) {
+        close(it->first);
+        delete it->second;
+    }
+    m_clients.clear();
+    
+    if (m_serverFd >= 0) {
+        close(m_serverFd);
+    }
+}
+// hna kandiro establish l connection dyalna
+bool Server::initSocket() {
+    m_serverFd = socket(AF_INET, SOCK_STREAM, 0);
+    if (m_serverFd < 0) {
+        std::cerr << "socket() failed" << std::endl;
+        return false;
+    }
+    
+    // hna its important bach ndiro set socket option bach  ndiro reuse address
+    int opt = 1;
+    if (setsockopt(m_serverFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+        std::cerr << "setsockopt() failed" << std::endl;
+        close(m_serverFd);
+        return false;
+    }
+    
+    sockaddr_in addr;
+    // ..
+    std::memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(m_port);
+    
+    if (bind(m_serverFd, (sockaddr*)&addr, sizeof(addr)) < 0) {
+        std::cerr << "bind() failed" << std::endl;
+        close(m_serverFd);
+        return false;
+    }
+    
+    if (listen(m_serverFd, 5) < 0) {
+        std::cerr << "listen() failed" << std::endl;
+        close(m_serverFd);
+        return false;
+    }
+    
+    // add server socket to read set
+    FD_SET(m_serverFd, &m_readFds);
+    m_maxFd = m_serverFd;
+    
+    std::cout << "IRC Server listening on port " << m_port << std::endl;
+    return true;
+}
+
+void Server::run() {
+    if (!initSocket()) {
+        return;
+    }
+    
+    while (true) {
+        fd_set readFds = m_readFds;
+        fd_set writeFds = m_writeFds;
+        
+        // hna iam using select() bach  nmonitoriw multiple fd's
+        int activity = select(m_maxFd + 1, &readFds, &writeFds, NULL, NULL);
+        
+        if (activity < 0) {
+            std::cerr << "select() error" << std::endl;
+            continue;
+        }
+        
+        // Check for new connections
+        if (FD_ISSET(m_serverFd, &readFds)) {
+            acceptNewClient();
+        }
+        
+        // Check for data from existing clients
+        for (std::map<int, Client*>::iterator it = m_clients.begin(); it != m_clients.end(); ++it) {
+            int clientFd = it->first;
+            if (FD_ISSET(clientFd, &readFds)) {
+                handleClientData(clientFd);
+            }
+        }
+    }
+}
+
+void Server::acceptNewClient() {
+    sockaddr_in clientAddr;
+    socklen_t addrLen = sizeof(clientAddr);
+    
+    int clientFd = accept(m_serverFd, (sockaddr*)&clientAddr, &addrLen);
+    if (clientFd < 0) {
+        std::cerr << "accept() failed" << std::endl;
+        return;
+    }
+    
+    // Get client IP address
+    char ipStr[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &clientAddr.sin_addr, ipStr, INET_ADDRSTRLEN);
+    
+    // Create new client
+    Client* client = new Client(clientFd, ipStr);
+    m_clients[clientFd] = client;
+    
+    // Add to select set
+    FD_SET(clientFd, &m_readFds);
+    if (clientFd > m_maxFd) {
+        m_maxFd = clientFd;
+    }
+    
+    std::cout << "New client connected from " << ipStr << " (FD: " << clientFd << ")" << std::endl;
+    
+    // Send welcome message
+    sendResponse(clientFd, "Welcome to the IRC Server");
+}
+
+void Server::handleClientData(int clientFd) {
+    char buffer[BUFFER_SIZE];
+    ssize_t bytes = recv(clientFd, buffer, BUFFER_SIZE - 1, 0);
+    
+    if (bytes <= 0) {
+        // Client disconnected
+        cleanupClient(clientFd);
+        return;
+    }
+    
+    buffer[bytes] = '\0';
+    std::string input(buffer);
+    
+    // AHMED : The parser should handle command splitting if multiple commands 
+    // arrive in the same buffer (separated by \r\n). Currently only first command is processed.
+    Command cmd = parser(input);
+    
+    CommandHandler handler;
+    handler.dispatch(m_clients[clientFd], cmd);
+}
+
+void Server::cleanupClient(int clientFd) {
+    std::cout << "Client disconnected (FD: " << clientFd << ")" << std::endl;
+    
+    // Remove from select sets
+    FD_CLR(clientFd, &m_readFds);
+    FD_CLR(clientFd, &m_writeFds);
+    
+    // Close socket
+    close(clientFd);
+    
+    // Delete client object
+    if (m_clients.find(clientFd) != m_clients.end()) {
+        delete m_clients[clientFd];
+        m_clients.erase(clientFd);
+    }
+    
+    // Update max fd if needed
+    if (clientFd == m_maxFd) {
+        m_maxFd = m_serverFd;
+        for (std::map<int, Client*>::iterator it = m_clients.begin(); it != m_clients.end(); ++it) {
+            if (it->first > m_maxFd) {
+                m_maxFd = it->first;
+            }
+        }
+    }
+}
+
+void Server::sendResponse(int clientFd, const std::string& response) {
+    if (m_clients.find(clientFd) == m_clients.end()) {
+        return;
+    }
+    
+    std::string fullResponse = response + "\r\n";
+    send(clientFd, fullResponse.c_str(), fullResponse.length(), 0);
+}
+
+bool Server::validatePassword(const std::string& password) {
+    return password == m_serverPassword;
+}
+
+Client* Server::getClient(int fd) {
+    if (m_clients.find(fd) != m_clients.end()) {
+        return m_clients[fd];
+    }
+    return NULL;
+}
+
+void Server::removeClient(int fd) {
+    cleanupClient(fd);
+}

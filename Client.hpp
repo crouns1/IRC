@@ -5,9 +5,6 @@
 #include <vector>
 #include <map>
 
-
-
-
 typedef struct s_ClientData {
   bool m_has_pwd;
   bool m_has_nick;
@@ -41,11 +38,9 @@ public:
   t_ClientData& getData(); // DONE
   void setAuth(bool auth); // DONE
   void  setData(t_ClientData& cltdata);
-  int sendMessage(const std::string& message) {
-    
-    std::cout << "Sending to client " << m_fd << ": " << message << std::endl;
-    return 0; 
-  }
+
+  // ALERT ""change""
+  int sendMessage(const std::string& message);
   //std::string extractCommad();
   //void addChannel(Channel *ch);
   //void removeChannel(Channel *ch);
