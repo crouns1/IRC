@@ -1,6 +1,7 @@
 #include "Server.hpp"
 #include <iostream>
 #include <cstring>
+#include <vector>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -62,6 +63,7 @@ bool Server::initSocket() {
         return false;
     }
     
+    
     // add server socket to read set
     FD_SET(m_serverFd, &m_readFds);
     m_maxFd = m_serverFd;
@@ -93,9 +95,16 @@ void Server::run() {
         }
         
         // Check for data from existing clients
+        // Create a copy of client FDs to avoid iterator invalidation if clients disconnect
+        std::vector<int> clientFds;
         for (std::map<int, Client*>::iterator it = m_clients.begin(); it != m_clients.end(); ++it) {
-            int clientFd = it->first;
-            if (FD_ISSET(clientFd, &readFds)) {
+            clientFds.push_back(it->first);
+        }
+        
+        for (size_t i = 0; i < clientFds.size(); ++i) {
+            int clientFd = clientFds[i];
+            // Check if client still exists (might have been removed during iteration)
+            if (m_clients.find(clientFd) != m_clients.end() && FD_ISSET(clientFd, &readFds)) {
                 handleClientData(clientFd);
             }
         }
@@ -150,7 +159,7 @@ void Server::handleClientData(int clientFd) {
     Command cmd = parser(input);
     
     CommandHandler handler;
-    handler.dispatch(m_clients[clientFd], cmd);
+    handler.dispatch(this, m_clients[clientFd], cmd);
 }
 
 void Server::cleanupClient(int clientFd) {
@@ -188,7 +197,7 @@ void Server::sendResponse(int clientFd, const std::string& response) {
     std::string fullResponse = response + "\r\n";
     send(clientFd, fullResponse.c_str(), fullResponse.length(), 0);
 }
-
+// here where i check validation of pass against server 
 bool Server::validatePassword(const std::string& password) {
     return password == m_serverPassword;
 }

@@ -3,7 +3,7 @@
     // irc protocol commands missing
     // NICK , USER ,QUIT , JOIN , PART , PRIVMSG , PING/PONG , MODE , TOPIC
 // server side state managmnet issues : 
-    // pass validation Server::validatePassword() set but not issued in CommandHandler
+    // pass validation Server::validatePassword() set but not issued in CommandHandler // this is fixed by crouns see Commandhandler and server.cpp
     // no channel system at all
     // client list managment  : only basic fd tracking , no nickname->client mapping
     // message routing between clients  "which is no way to send msgs between clients"
