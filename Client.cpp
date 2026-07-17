@@ -44,3 +44,13 @@ int Client::sendMessage(const std::string& message) {
     std::cout << "Sending to client " << m_fd << ": " << message << std::endl;
     return result;
 }
+
+// Add these to the bottom of Client.cpp
+
+std::string Client::getReadBuffer() const {
+    return m_read_buffer;
+}
+
+void Client::setReadBuffer(const std::string& buffer) {
+    m_read_buffer = buffer;
+}

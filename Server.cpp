@@ -143,23 +143,42 @@ void Server::acceptNewClient() {
 
 void Server::handleClientData(int clientFd) {
     char buffer[BUFFER_SIZE];
+    std::memset(buffer, 0, BUFFER_SIZE);
+    
     ssize_t bytes = recv(clientFd, buffer, BUFFER_SIZE - 1, 0);
     
     if (bytes <= 0) {
-        // Client disconnected
         cleanupClient(clientFd);
         return;
     }
     
-    buffer[bytes] = '\0';
+  
     std::string input(buffer);
     
-    // AHMED : The parser should handle command splitting if multiple commands 
-    // arrive in the same buffer (separated by \r\n). Currently only first command is processed.
-    Command cmd = parser(input);
+
+    Client* client = m_clients[clientFd];
+    if (!client) return;
     
-    CommandHandler handler;
-    handler.dispatch(this, m_clients[clientFd], cmd);
+
+    client->setReadBuffer(client->getReadBuffer() + input);
+    
+    std::string currentBuffer = client->getReadBuffer();
+    size_t pos;
+
+    while ((pos = currentBuffer.find('\n')) != std::string::npos) {
+
+        std::string rawCmd = currentBuffer.substr(0, pos + 1);
+        
+        currentBuffer.erase(0, pos + 1);
+        client->setReadBuffer(currentBuffer);
+        
+        Command cmd = parser(rawCmd);
+        
+        CommandHandler handler;
+        handler.dispatch(this, client, cmd);
+        
+        currentBuffer = client->getReadBuffer(); 
+    }
 }
 
 void Server::cleanupClient(int clientFd) {
@@ -211,4 +230,29 @@ Client* Server::getClient(int fd) {
 
 void Server::removeClient(int fd) {
     cleanupClient(fd);
+}
+
+bool Server::isNicknameInUse(const std::string& nickname) {
+    for (std::map<int, Client*>::iterator it = m_clients.begin(); it != m_clients.end(); ++it) {
+        if (it->second->getData().m_nickname == nickname) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void Server::printList()
+{
+    for (std::map<int, Client*>::iterator it = m_clients.begin(); it != m_clients.end(); ++it) {
+        it->second->sendMessage (it->second->getData().m_username);
+    }
+}
+
+Client* Server::getClientByNickname(const std::string& nickname) {
+    for (std::map<int, Client*>::iterator it = m_clients.begin(); it != m_clients.end(); ++it) {
+        if (it->second->getData().m_nickname == nickname) {
+            return it->second;
+        }
+    }
+    return NULL;
 }

@@ -23,9 +23,12 @@ private:
   void handleNick(Server* server, Client* client, const Command &cmd);
   void handleUser(Server* server, Client* client, const Command &cmd);
   void handleQuit(Server* server, Client* client, const Command &cmd);
+  void handleList(Server* server, Client* client, const Command &cmd);
+  void handlePrivmsg(Server* server, Client* client, const Command &cmd);
 public:
   CommandHandler();
   void dispatch(Server* server, Client *client, const Command& cmd);
+  void Checkregistration(Client* client);
   ~CommandHandler(){}
 };
 

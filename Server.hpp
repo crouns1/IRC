@@ -47,9 +47,11 @@ public:
     
     // Validate client password
     bool validatePassword(const std::string& password);
-    
+    bool isNicknameInUse(const std::string& nickname);
     // Get client by fd
     Client* getClient(int fd);
+    void printList();
+    Client* getClientByNickname(const std::string& nickname);
     
     // Remove client
     void removeClient(int fd);

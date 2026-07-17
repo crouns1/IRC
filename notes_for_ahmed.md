@@ -15,7 +15,7 @@
 
 
     // for your side mr ahmed 
-    // multiple cmds in a buffer , cant handle /r/n separated cmds in single read (read issues)
+    // multiple cmds in a buffer , cant handle /r/n separated cmds in single read (read issues) -- DONE
     // you dont check for min/max parameters 
     // for the parse issues
         // also you dont convert the commands to uppercase at all
@@ -26,11 +26,11 @@
 
 // for now the priority to (server need)
 	// channel system if this is not done so "no multi user communication at all"
-	// NICK / USER implementation : core reg
-	// message routing (PRIVMSG) "basic chat functionallity"
-	// password validation "for security reasons"
+	// NICK / USER implementation : core reg -- DONE
+	// message routing (PRIVMSG) "basic chat functionallity" -- DONE
+	// password validation "for security reasons" -- DONE
 	
 // (parsing need)
-	// multiple command parsing 
+	// multiple command parsing --- DONE
 	// case insensitive commands "irc standard requirement "
 	// command prefix support "needed for server to server and some clients"

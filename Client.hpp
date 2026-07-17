@@ -24,7 +24,7 @@ private:
   int m_fd;
   std::string m_ip_addr;
   t_ClientData m_data;
-  //std::string m_read_buffer;
+  std::string m_read_buffer;
   //std::string m_write_buffer;
 
 
@@ -38,7 +38,8 @@ public:
   t_ClientData& getData(); // DONE
   void setAuth(bool auth); // DONE
   void  setData(t_ClientData& cltdata);
-
+  std::string getReadBuffer() const;
+  void setReadBuffer(const std::string& buffer);
   // ALERT ""change""
   int sendMessage(const std::string& message);
   //std::string extractCommad();

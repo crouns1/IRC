@@ -12,10 +12,47 @@ CommandHandler::CommandHandler()
   m_handle["NICK"] = &CommandHandler::handleNick;
   m_handle["USER"] = &CommandHandler::handleUser;
   m_handle["QUIT"] = &CommandHandler::handleQuit;
+  m_handle["LIST"] = &CommandHandler::handleList;
+  m_handle["PRIVMSG"] = &CommandHandler::handlePrivmsg;
 }
 // here i implemented help that list all the commands that is availlable
 // HELP / PASS 
+void CommandHandler::handlePrivmsg(Server* server, Client* client, const Command& cmd)
+{
+    if (!client->IsAuth()) {
+        client->sendMessage("451 :You have not registered");
+        return;
+    }
 
+    if (cmd.params.empty()) {
+        client->sendMessage("411 :No recipient given (PRIVMSG)");
+        return;
+    }
+    if (!cmd.hasTrailing || cmd.trailing.empty()) {
+        client->sendMessage("412 :No text to send");
+        return;
+    }
+
+    std::string targetNick = cmd.params[0];
+    std::string messageToSend = cmd.trailing;
+
+    Client* targetClient = server->getClientByNickname(targetNick);
+
+    if (!targetClient) {
+        // If the user doesn't exist, send the ERR_NOSUCHNICK numeric
+        client->sendMessage("401 " + targetNick + " :No such nick/channel");
+        return;
+    }
+
+    t_ClientData& senderData = client->getData();
+    
+    std::string host = senderData.m_hostname.empty() ? "127.0.0.1" : senderData.m_hostname;
+    
+    std::string prefix = ":" + senderData.m_nickname + "!" + senderData.m_username + "@" + host;
+    std::string fullMessage = prefix + " PRIVMSG " + targetNick + " :" + messageToSend;
+
+    targetClient->sendMessage(fullMessage);
+}
 void CommandHandler::handleHelp(Server* server, Client* client, const Command &cmd)
 {
   (void)server; // Not used in help command
@@ -36,6 +73,13 @@ void CommandHandler::handleHelp(Server* server, Client* client, const Command &c
     client->sendMessage("HELP is used to get the list of available commands");
   else 
     client->sendMessage("421 " + cmd.params[0] + " :Unknown command"); 
+}
+
+void CommandHandler::handleList(Server* server, Client* client, const Command& cmd)
+{
+  (void)client;
+  (void)cmd;
+  server->printList();
 }
 void CommandHandler::dispatch(Server* server, Client *client, const Command& cmd)
 {
@@ -89,19 +133,66 @@ void CommandHandler::handlePass(Server* server, Client *client, const Command& c
 // db khassek timplementi had nick ...
 
 
-
+void CommandHandler::Checkregistration(Client* client)
+{
+  t_ClientData& data = client->getData();
+  if(client->IsAuth())
+    return;
+  if(data.m_has_nick && data.m_has_user && data.m_has_pwd)
+  {
+    data.m_Auth = true;
+    client->sendMessage("Welcome");
+  }
+}
 void CommandHandler::handleNick(Server* server, Client* client, const Command& cmd)
 {
-  (void)server;
-  (void)cmd; 
-  client->sendMessage("NICK :Not implemented yet");
+  t_ClientData& data = client->getData();
+  if (!data.m_has_pwd)
+  {
+    client->sendMessage("451: You are not registrated");
+  }
+  if(cmd.params.empty())
+  {
+    client->sendMessage("431: No nickname provided");
+  }
+  std::string nickname = cmd.params[0];
+  if (server->isNicknameInUse(nickname)) {
+        client->sendMessage("433 * " + nickname + " :Nickname is already in use");
+        return;
+  }
+  data.m_nickname = nickname;
+  data.m_has_nick = true;
+  Checkregistration(client);
 }
 
 void CommandHandler::handleUser(Server* server, Client* client, const Command& cmd)
 {
-  (void)server;
-  (void)cmd;
-  client->sendMessage("USER :Not implemented yet");
+    (void)server;
+    t_ClientData& data = client->getData();
+
+    if (client->IsAuth()) {
+        client->sendMessage("462 :You may not reregister");
+        return;
+    }
+    if (!data.m_has_pwd) {
+        client->sendMessage("451 :You have not registered");
+        return;
+    }
+    if (cmd.params.size() < 3 || (!cmd.hasTrailing && cmd.params.size() < 4)) {
+        client->sendMessage("461 USER :Not enough parameters");
+        return;
+    }
+
+    data.m_username = cmd.params[0];
+    
+    if (cmd.hasTrailing)
+        data.m_realname = cmd.trailing;
+    else
+        data.m_realname = cmd.params[3];
+
+    data.m_has_user = true;
+
+    Checkregistration(client);
 }
 
 void CommandHandler::handleQuit(Server* server, Client* client, const Command& cmd)
