@@ -1,7 +1,7 @@
 #include "CommandHandler.hpp"
 #include "tools.hpp"
 #include "Server.hpp"
-
+#include "channel.hpp"
 CommandHandler::CommandHandler()
 {
   // same as usall
@@ -89,12 +89,6 @@ void CommandHandler::dispatch(Server* server, Client *client, const Command& cmd
   else 
     client->sendMessage("421" + cmd.name + " :Unknown Command");
 }
-// for the PASS cmd
-// it compare betwene the stored password which we give it as arg 3 --> ./irc "port" "pass" 
-// with the client password 
-// if password correct --> password accepted 
-// but i didnt check the arg after PASS pasworrd "?"
-// if exist "he should not exist at all"
 void CommandHandler::handlePass(Server* server, Client *client, const Command& cmd)
 {
   if (client->IsAuth()) // The client is already authenticated
@@ -150,10 +144,12 @@ void CommandHandler::handleNick(Server* server, Client* client, const Command& c
   if (!data.m_has_pwd)
   {
     client->sendMessage("451: You are not registrated");
+    return;
   }
   if(cmd.params.empty())
   {
     client->sendMessage("431: No nickname provided");
+    return;
   }
   std::string nickname = cmd.params[0];
   if (server->isNicknameInUse(nickname)) {
@@ -164,7 +160,16 @@ void CommandHandler::handleNick(Server* server, Client* client, const Command& c
   data.m_has_nick = true;
   Checkregistration(client);
 }
-
+void CommandHandler::handleJoin(Server* server, Client* client, const Command& cmd)
+{
+  std::string ch_name = cmd.params[0];
+  Channel *channel = server->getChannel(ch_name);
+  if (channel == NULL)
+  {
+    
+  }
+  
+}
 void CommandHandler::handleUser(Server* server, Client* client, const Command& cmd)
 {
     (void)server;

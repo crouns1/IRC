@@ -7,7 +7,6 @@
 #include <iostream>
 #include "Client.hpp"
 #include "tools.hpp"
-
 // Forward declaration to avoid circular dependency
 class Server;
 
@@ -24,6 +23,8 @@ private:
   void handleUser(Server* server, Client* client, const Command &cmd);
   void handleQuit(Server* server, Client* client, const Command &cmd);
   void handleList(Server* server, Client* client, const Command &cmd);
+  void handleJoin(Server* server, Client* client, const Command &cmd);
+  
   void handlePrivmsg(Server* server, Client* client, const Command &cmd);
 public:
   CommandHandler();
