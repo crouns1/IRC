@@ -28,11 +28,11 @@ public:
 	}
     void removeClient(Client* client)
 	{
-
+		m_members.erase(client->getFd());
 	}
-    bool hasClient(Client* client) const;
+    bool hasClient(Client* client) const
     {
-		
+		return m_members.find(client->getFd()) != m_members.end();
 	}
     
     void addOperator(Client* client);

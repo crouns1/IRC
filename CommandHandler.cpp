@@ -171,7 +171,10 @@ void CommandHandler::handleJoin(Server* server, Client* client, const Command& c
     channel->addClient(client);
     channel->addoperator(mode)
   }
-  
+  else 
+  {
+    // NEED TO BE DONE 
+  }
 }
 void CommandHandler::handleUser(Server* server, Client* client, const Command& cmd)
 {
