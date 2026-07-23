@@ -22,10 +22,18 @@ public:
     ~Channel();
 
     
-    void addClient(Client* client);
-    void removeClient(Client* client);
+    void addClient(Client* client)
+	{
+		m_members[client->getFd()] = client;
+	}
+    void removeClient(Client* client)
+	{
+
+	}
     bool hasClient(Client* client) const;
-    
+    {
+		
+	}
     
     void addOperator(Client* client);
     void removeOperator(Client* client);

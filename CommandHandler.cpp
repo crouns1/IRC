@@ -166,7 +166,10 @@ void CommandHandler::handleJoin(Server* server, Client* client, const Command& c
   Channel *channel = server->getChannel(ch_name);
   if (channel == NULL)
   {
-    
+    // Let create this channel 
+    server->createChannel(ch_name);
+    channel->addClient(client);
+    channel->addoperator(mode)
   }
   
 }
