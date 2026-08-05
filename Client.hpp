@@ -25,7 +25,8 @@ private:
   std::string m_ip_addr;
   t_ClientData m_data;
   std::string m_read_buffer;
-  //std::string m_write_buffer;
+  std::string m_write_buffer;
+  bool m_disconnect;
 
 
   //std::vector<Channel*> m_joined_channels;
@@ -40,6 +41,10 @@ public:
   void  setData(t_ClientData& cltdata);
   std::string getReadBuffer() const;
   void setReadBuffer(const std::string& buffer);
+  std::string& getWriteBuffer();
+  void setWriteBuffer(const std::string& buffer);
+  void setDisconnect(bool disconnect);
+  bool shouldDisconnect() const;
   // ALERT ""change""
   int sendMessage(const std::string& message);
   //std::string extractCommad();

@@ -1,6 +1,8 @@
 #include "Server.hpp"
 #include <iostream>
 #include <cstring>
+#include <cerrno>
+#include <fcntl.h>
 #include <vector>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -11,7 +13,7 @@
 #define MAX_CLIENTS 100
 
 Server::Server(int port, const std::string& password) 
-    : m_port(port), m_serverPassword(password), m_serverFd(-1), m_maxFd(0) {
+    : m_port(port), m_serverPassword(password), m_serverName("irc.local"), m_serverFd(-1), m_maxFd(0) {
     FD_ZERO(&m_readFds);
     FD_ZERO(&m_writeFds);
 }
@@ -23,6 +25,11 @@ Server::~Server() {
         delete it->second;
     }
     m_clients.clear();
+    
+    for (std::map<std::string, Channel*>::iterator it = m_channels.begin(); it != m_channels.end(); ++it) {
+        delete it->second;
+    }
+    m_channels.clear();
     
     if (m_serverFd >= 0) {
         close(m_serverFd);
@@ -78,6 +85,13 @@ void Server::run() {
     }
     
     while (true) {
+        // register clients with queued output in the write set so a slow
+        // reader never blocks the whole server
+        for (std::map<int, Client*>::iterator it = m_clients.begin(); it != m_clients.end(); ++it) {
+            if (!it->second->getWriteBuffer().empty())
+                FD_SET(it->first, &m_writeFds);
+        }
+
         fd_set readFds = m_readFds;
         fd_set writeFds = m_writeFds;
         
@@ -108,6 +122,16 @@ void Server::run() {
                 handleClientData(clientFd);
             }
         }
+        
+        // flush pending output for writable clients
+        for (size_t i = 0; i < clientFds.size(); ++i) {
+            int clientFd = clientFds[i];
+            if (m_clients.find(clientFd) != m_clients.end() && FD_ISSET(clientFd, &writeFds)) {
+                if (!flushClientWrites(clientFd)) {
+                    cleanupClient(clientFd);
+                }
+            }
+        }
     }
 }
 
@@ -120,6 +144,17 @@ void Server::acceptNewClient() {
         std::cerr << "accept() failed" << std::endl;
         return;
     }
+    
+    if (m_clients.size() >= MAX_CLIENTS) {
+        const char* msg = "ERROR :Server is full\r\n";
+        send(clientFd, msg, std::strlen(msg), MSG_NOSIGNAL);
+        close(clientFd);
+        return;
+    }
+    
+    // non-blocking client socket so no single client can stall the server
+    int flags = fcntl(clientFd, F_GETFL, 0);
+    fcntl(clientFd, F_SETFL, flags | O_NONBLOCK);
     
     // Get client IP address
     char ipStr[INET_ADDRSTRLEN];
@@ -147,25 +182,34 @@ void Server::handleClientData(int clientFd) {
     
     ssize_t bytes = recv(clientFd, buffer, BUFFER_SIZE - 1, 0);
     
-    if (bytes <= 0) {
+    if (bytes < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return;
+        cleanupClient(clientFd);
+        return;
+    }
+    if (bytes == 0) {
         cleanupClient(clientFd);
         return;
     }
     
-  
     std::string input(buffer);
     
-
     Client* client = m_clients[clientFd];
     if (!client) return;
     
-
     client->setReadBuffer(client->getReadBuffer() + input);
+    
+    // guard against unbounded buffer growth on a flood of partial lines
+    if (client->getReadBuffer().size() > 8192) {
+        cleanupClient(clientFd);
+        return;
+    }
     
     std::string currentBuffer = client->getReadBuffer();
     size_t pos;
 
-    while ((pos = currentBuffer.find('\n')) != std::string::npos) {
+    while ((pos = currentBuffer.find('\n')) != std::string::npos && !client->shouldDisconnect()) {
 
         std::string rawCmd = currentBuffer.substr(0, pos + 1);
         
@@ -179,10 +223,25 @@ void Server::handleClientData(int clientFd) {
         
         currentBuffer = client->getReadBuffer(); 
     }
+
+    if (client->shouldDisconnect()) {
+        cleanupClient(clientFd);
+    }
 }
 
 void Server::cleanupClient(int clientFd) {
     std::cout << "Client disconnected (FD: " << clientFd << ")" << std::endl;
+    
+    Client* client = NULL;
+    if (m_clients.find(clientFd) != m_clients.end())
+        client = m_clients[clientFd];
+    
+    // remove from every channel it joined 
+    if (client)
+        removeClientFromChannels(client, "Connection closed");
+    
+    if (client)
+        flushClientWrites(clientFd);
     
     // Remove from select sets
     FD_CLR(clientFd, &m_readFds);
@@ -192,8 +251,8 @@ void Server::cleanupClient(int clientFd) {
     close(clientFd);
     
     // Delete client object
-    if (m_clients.find(clientFd) != m_clients.end()) {
-        delete m_clients[clientFd];
+    if (client) {
+        delete client;
         m_clients.erase(clientFd);
     }
     
@@ -208,13 +267,33 @@ void Server::cleanupClient(int clientFd) {
     }
 }
 
+bool Server::flushClientWrites(int clientFd) {
+    Client* client = getClient(clientFd);
+    if (!client)
+        return false;
+
+    std::string& buffer = client->getWriteBuffer();
+    while (!buffer.empty()) {
+        ssize_t sent = send(clientFd, buffer.c_str(), buffer.size(), MSG_NOSIGNAL);
+        if (sent < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+                return true; // try again later, fd stays in the write set
+            return false;    // hard error, drop the client
+        }
+        buffer.erase(0, static_cast<size_t>(sent));
+    }
+
+    FD_CLR(clientFd, &m_writeFds);
+    return true;
+}
+
 void Server::sendResponse(int clientFd, const std::string& response) {
     if (m_clients.find(clientFd) == m_clients.end()) {
         return;
     }
     
     std::string fullResponse = response + "\r\n";
-    send(clientFd, fullResponse.c_str(), fullResponse.length(), 0);
+    send(clientFd, fullResponse.c_str(), fullResponse.length(), MSG_NOSIGNAL);
 }
 // here where i check validation of pass against server 
 bool Server::validatePassword(const std::string& password) {
@@ -244,7 +323,7 @@ bool Server::isNicknameInUse(const std::string& nickname) {
 void Server::printList()
 {
     for (std::map<int, Client*>::iterator it = m_clients.begin(); it != m_clients.end(); ++it) {
-        it->second->sendMessage (it->second->getData().m_username);
+        it->second->sendMessage(it->second->getData().m_username);
     }
 }
 
@@ -255,4 +334,46 @@ Client* Server::getClientByNickname(const std::string& nickname) {
         }
     }
     return NULL;
+}
+
+const std::string& Server::getServerName() const {
+    return m_serverName;
+}
+
+void Server::removeChannel(const std::string& name) {
+    std::map<std::string, Channel*>::iterator it = m_channels.find(name);
+    if (it != m_channels.end()) {
+        delete it->second;
+        m_channels.erase(it);
+    }
+}
+
+void Server::removeClientFromChannels(Client* client, const std::string& reason) {
+    t_ClientData& data = client->getData();
+    std::string nick = data.m_nickname.empty() ? "*" : data.m_nickname;
+    std::string host = data.m_hostname.empty() ? "127.0.0.1" : data.m_hostname;
+    std::string quitMsg = ":" + nick + "!" + data.m_username + "@" + host + " QUIT :" + reason;
+
+    std::vector<std::string> emptyChannels;
+
+    for (std::map<std::string, Channel*>::iterator it = m_channels.begin(); it != m_channels.end(); ++it) {
+        Channel* channel = it->second;
+        if (channel->hasClient(client)) {
+            channel->broadcast(quitMsg, client);
+            channel->removeClient(client);
+            channel->removeOperator(client);
+            if (channel->isEmpty())
+                emptyChannels.push_back(it->first);
+        }
+    }
+
+    for (size_t i = 0; i < emptyChannels.size(); ++i)
+        removeChannel(emptyChannels[i]);
+}
+
+void Server::broadcastToChannelsOf(Client* client, const std::string& message) {
+    for (std::map<std::string, Channel*>::iterator it = m_channels.begin(); it != m_channels.end(); ++it) {
+        if (it->second->hasClient(client))
+            it->second->broadcast(message, NULL);
+    }
 }

@@ -2,11 +2,33 @@
 #include "tools.hpp"
 #include "Server.hpp"
 #include "channel.hpp"
+#include <cctype>
+#include <cstring>
+
+static bool isValidNickname(const std::string& nick)
+{
+  if (nick.empty() || nick.size() > 9)
+    return false;
+  for (size_t i = 0; i < nick.size(); ++i)
+  {
+    char c = nick[i];
+    if (!(std::isalnum(static_cast<unsigned char>(c)) || std::strchr("[]\\`_^{|}-", c)))
+      return false;
+  }
+  return true;
+}
+
+static std::string getPrefix(Client* client)
+{
+  t_ClientData& d = client->getData();
+  std::string nick = d.m_nickname.empty() ? "*" : d.m_nickname;
+  std::string host = d.m_hostname.empty() ? "127.0.0.1" : d.m_hostname;
+  return ":" + nick + "!" + d.m_username + "@" + host;
+}
+
 CommandHandler::CommandHandler()
 {
-  // same as usall
-  // same as u , i mapped command names to funcs that handle those commands
-   
+
   m_handle["HELP"] = &CommandHandler::handleHelp;
   m_handle["PASS"] = &CommandHandler::handlePass;
   m_handle["NICK"] = &CommandHandler::handleNick;
@@ -14,9 +36,15 @@ CommandHandler::CommandHandler()
   m_handle["QUIT"] = &CommandHandler::handleQuit;
   m_handle["LIST"] = &CommandHandler::handleList;
   m_handle["PRIVMSG"] = &CommandHandler::handlePrivmsg;
+  m_handle["JOIN"] = &CommandHandler::handleJoin;
+  m_handle["PART"] = &CommandHandler::handlePart;
+  m_handle["TOPIC"] = &CommandHandler::handleTopic;
+  m_handle["KICK"] = &CommandHandler::handleKick;
+  m_handle["INVITE"] = &CommandHandler::handleInvite;
+  m_handle["MODE"] = &CommandHandler::handleMode;
+  m_handle["PING"] = &CommandHandler::handlePing;
+  m_handle["CAP"] = &CommandHandler::handleCap;
 }
-// here i implemented help that list all the commands that is availlable
-// HELP / PASS 
 void CommandHandler::handlePrivmsg(Server* server, Client* client, const Command& cmd)
 {
     if (!client->IsAuth()) {
@@ -33,36 +61,45 @@ void CommandHandler::handlePrivmsg(Server* server, Client* client, const Command
         return;
     }
 
-    std::string targetNick = cmd.params[0];
-    std::string messageToSend = cmd.trailing;
+    std::string target = cmd.params[0];
+    std::string fullMessage = getPrefix(client) + " PRIVMSG " + target + " :" + cmd.trailing;
 
-    Client* targetClient = server->getClientByNickname(targetNick);
-
-    if (!targetClient) {
-        // If the user doesn't exist, send the ERR_NOSUCHNICK numeric
-        client->sendMessage("401 " + targetNick + " :No such nick/channel");
+    if (!target.empty() && target[0] == '#') {
+        Channel* channel = server->getChannel(target);
+        if (channel == NULL || !channel->hasClient(client)) {
+            client->sendMessage("401 " + target + " :No such nick/channel");
+            return;
+        }
+        channel->broadcast(fullMessage, client);
         return;
     }
 
-    t_ClientData& senderData = client->getData();
-    
-    std::string host = senderData.m_hostname.empty() ? "127.0.0.1" : senderData.m_hostname;
-    
-    std::string prefix = ":" + senderData.m_nickname + "!" + senderData.m_username + "@" + host;
-    std::string fullMessage = prefix + " PRIVMSG " + targetNick + " :" + messageToSend;
+    Client* targetClient = server->getClientByNickname(target);
+
+    if (!targetClient) {
+        client->sendMessage("401 " + target + " :No such nick/channel");
+        return;
+    }
 
     targetClient->sendMessage(fullMessage);
 }
 void CommandHandler::handleHelp(Server* server, Client* client, const Command &cmd)
 {
-  (void)server; // Not used in help command
+  (void)server;
   
   if (cmd.params.empty())
   {
-    
-    client->sendMessage("only HELP and PASS is availlable");
-    client->sendMessage("PASS is used to authenticate the client");
-    client->sendMessage("HELP is used to get the list of available commands");
+    client->sendMessage("PASS <password>    - authenticate with the server password");
+    client->sendMessage("NICK <nickname>    - set or change your nickname");
+    client->sendMessage("USER <user> 0 * <realname> - set your username");
+    client->sendMessage("JOIN <#channel>    - join or create a channel");
+    client->sendMessage("PART <#channel>    - leave a channel");
+    client->sendMessage("PRIVMSG <target> :<text> - send a message to a user or channel");
+    client->sendMessage("TOPIC <#channel> [topic] - view or set a channel topic");
+    client->sendMessage("KICK <#channel> <nick> - kick a user from a channel");
+    client->sendMessage("INVITE <nick> <#channel> - invite a user to a channel");
+    client->sendMessage("MODE <#channel> [+|-][io k l t] - change channel modes");
+    client->sendMessage("QUIT [message]     - disconnect from the server");
   }
   else if (cmd.params[0] == "PASS")
   {
@@ -83,21 +120,22 @@ void CommandHandler::handleList(Server* server, Client* client, const Command& c
 }
 void CommandHandler::dispatch(Server* server, Client *client, const Command& cmd)
 {
+  if (cmd.name.empty())
+    return;
   std::map<std::string, CmdFct>::iterator it = m_handle.find(cmd.name);
   if (it != m_handle.end())
     (this->*(it->second))(server, client, cmd);
   else 
-    client->sendMessage("421" + cmd.name + " :Unknown Command");
+    client->sendMessage("421 " + cmd.name + " :Unknown Command");
 }
 void CommandHandler::handlePass(Server* server, Client *client, const Command& cmd)
 {
-  if (client->IsAuth()) // The client is already authenticated
+  if (client->IsAuth())
   {
     client->sendMessage("462 :You may not reregister");
     return ; 
   }
   
-  // Strict validation: check if password parameter is provided
   if (cmd.params.empty() && (cmd.trailing.empty() || !cmd.hasTrailing))
   {
     client->sendMessage("461 PASS :Not enough parameters");
@@ -109,14 +147,12 @@ void CommandHandler::handlePass(Server* server, Client *client, const Command& c
     pwd = cmd.trailing;
   else 
     pwd = cmd.params[0];
-  
-  // Strict password validation against server password
+
   if (!server->validatePassword(pwd)) {
     client->sendMessage("464 :Password incorrect");
     return;
   }
-  
-  // Mark password as validated
+
   t_ClientData& data = client->getData();
   data.m_has_pwd = true;
   
@@ -124,10 +160,7 @@ void CommandHandler::handlePass(Server* server, Client *client, const Command& c
 }
 
 
-// db khassek timplementi had nick ...
-
-
-void CommandHandler::Checkregistration(Client* client)
+void CommandHandler::Checkregistration(Server* server, Client* client)
 {
   t_ClientData& data = client->getData();
   if(client->IsAuth())
@@ -135,7 +168,17 @@ void CommandHandler::Checkregistration(Client* client)
   if(data.m_has_nick && data.m_has_user && data.m_has_pwd)
   {
     data.m_Auth = true;
-    client->sendMessage("Welcome");
+    std::string nick = data.m_nickname;
+    std::string host = data.m_hostname.empty() ? "127.0.0.1" : data.m_hostname;
+    std::string srv = server->getServerName();
+
+    client->sendMessage(":" + srv + " 001 " + nick + " :Welcome to the Internet Relay Network " + nick + "!" + data.m_username + "@" + host);
+    client->sendMessage(":" + srv + " 002 " + nick + " :Your host is " + srv + ", running version ft_irc-1.0");
+    client->sendMessage(":" + srv + " 003 " + nick + " :This server was created at build time");
+    client->sendMessage(":" + srv + " 004 " + nick + " " + srv + " ft_irc-1.0 iotkl bikl");
+    client->sendMessage(":" + srv + " 375 " + nick + " :- " + srv + " Message of the day -");
+    client->sendMessage(":" + srv + " 372 " + nick + " :- Welcome to ft_irc, the 42 project IRC server.");
+    client->sendMessage(":" + srv + " 376 " + nick + " :End of /MOTD command.");
   }
 }
 void CommandHandler::handleNick(Server* server, Client* client, const Command& cmd)
@@ -143,38 +186,105 @@ void CommandHandler::handleNick(Server* server, Client* client, const Command& c
   t_ClientData& data = client->getData();
   if (!data.m_has_pwd)
   {
-    client->sendMessage("451: You are not registrated");
+    client->sendMessage("451 :You are not registered");
     return;
   }
-  if(cmd.params.empty())
+  std::string nickname;
+  if (!cmd.params.empty())
+    nickname = cmd.params[0];
+  else if (cmd.hasTrailing && !cmd.trailing.empty())
+    nickname = cmd.trailing;
+  if (nickname.empty())
   {
-    client->sendMessage("431: No nickname provided");
+    client->sendMessage("431 :No nickname given");
     return;
   }
-  std::string nickname = cmd.params[0];
+  if (!isValidNickname(nickname)) {
+    client->sendMessage("432 * " + nickname + " :Erroneous nickname");
+    return;
+  }
   if (server->isNicknameInUse(nickname)) {
         client->sendMessage("433 * " + nickname + " :Nickname is already in use");
         return;
   }
+  bool changing = data.m_has_nick;
+  std::string oldNick = data.m_nickname;
   data.m_nickname = nickname;
   data.m_has_nick = true;
-  Checkregistration(client);
+
+  if (changing)
+  {
+    std::string host = data.m_hostname.empty() ? "127.0.0.1" : data.m_hostname;
+    server->broadcastToChannelsOf(client, ":" + oldNick + "!" + data.m_username + "@" + host + " NICK :" + nickname);
+  }
+  Checkregistration(server, client);
 }
+
 void CommandHandler::handleJoin(Server* server, Client* client, const Command& cmd)
 {
+  if (!client->IsAuth()) {
+    client->sendMessage("451 :You have not registered");
+    return;
+  }
+  if (cmd.params.empty()) {
+    client->sendMessage("461 JOIN :Not enough parameters");
+    return;
+  }
+
   std::string ch_name = cmd.params[0];
-  Channel *channel = server->getChannel(ch_name);
-  if (channel == NULL)
-  {
-    // Let create this channel 
-    server->createChannel(ch_name);
-    channel->addClient(client);
-    channel->addoperator(mode)
+  std::string key;
+  if (cmd.params.size() > 1)
+    key = cmd.params[1];
+
+  if (ch_name.empty() || ch_name[0] != '#' || ch_name.size() > 50) {
+    client->sendMessage("403 " + ch_name + " :No such channel");
+    return;
   }
-  else 
+
+  Channel* channel = server->getChannel(ch_name);
+
+  if (channel != NULL)
   {
-    // NEED TO BE DONE 
+    if (channel->hasClient(client))
+      return;
+    if (channel->isInviteOnly() && !channel->isInvited(client)) {
+      client->sendMessage("473 " + ch_name + " :Cannot join channel (+i)");
+      return;
+    }
+    if (!channel->getPassword().empty() && channel->getPassword() != key) {
+      client->sendMessage("475 " + ch_name + " :Cannot join channel (+k)");
+      return;
+    }
+    if (channel->getUserLimit() > 0 && channel->getMemberCount() >= static_cast<int>(channel->getUserLimit())) {
+      client->sendMessage("471 " + ch_name + " :Cannot join channel (+l)");
+      return;
+    }
+    channel->removeInvite(client);
   }
+  else
+  {
+    channel = server->createChannel(ch_name);
+  }
+
+  bool first = channel->isEmpty();
+  channel->addClient(client);
+  if (first)
+    channel->addOperator(client);
+
+  channel->broadcast(getPrefix(client) + " JOIN :" + ch_name, NULL);
+
+  std::string names;
+  std::vector<std::string> members = channel->getMemberList();
+  for (size_t i = 0; i < members.size(); ++i) {
+    if (i > 0)
+      names += " ";
+    names += members[i];
+  }
+
+  std::string serverName = server->getServerName();
+  std::string nick = client->getData().m_nickname;
+  client->sendMessage(":" + serverName + " 353 " + nick + " = " + ch_name + " :" + names);
+  client->sendMessage(":" + serverName + " 366 " + nick + " " + ch_name + " :End of /NAMES list.");
 }
 void CommandHandler::handleUser(Server* server, Client* client, const Command& cmd)
 {
@@ -203,12 +313,345 @@ void CommandHandler::handleUser(Server* server, Client* client, const Command& c
 
     data.m_has_user = true;
 
-    Checkregistration(client);
+    Checkregistration(server, client);
 }
 
 void CommandHandler::handleQuit(Server* server, Client* client, const Command& cmd)
 {
+  std::string reason = "Client Quit";
+  if (cmd.hasTrailing && !cmd.trailing.empty())
+    reason = cmd.trailing;
+
+  t_ClientData& data = client->getData();
+  server->removeClientFromChannels(client, reason);
+  client->sendMessage("ERROR :Closing Link: " + (data.m_nickname.empty() ? "*" : data.m_nickname) + " (" + reason + ")");
+  client->setDisconnect(true);
+}
+
+void CommandHandler::handlePart(Server* server, Client* client, const Command& cmd)
+{
+  if (!client->IsAuth()) {
+    client->sendMessage("451 :You have not registered");
+    return;
+  }
+  if (cmd.params.empty()) {
+    client->sendMessage("461 PART :Not enough parameters");
+    return;
+  }
+
+  std::string ch_name = cmd.params[0];
+  Channel* channel = server->getChannel(ch_name);
+  if (channel == NULL) {
+    client->sendMessage("403 " + ch_name + " :No such channel");
+    return;
+  }
+  if (!channel->hasClient(client)) {
+    client->sendMessage("442 " + ch_name + " :You're not on that channel");
+    return;
+  }
+
+  std::string reason;
+  if (cmd.hasTrailing && !cmd.trailing.empty())
+    reason = cmd.trailing;
+
+  std::string msg = getPrefix(client) + " PART " + ch_name;
+  if (!reason.empty())
+    msg += " :" + reason;
+  channel->broadcast(msg, NULL);
+
+  channel->removeClient(client);
+  channel->removeOperator(client);
+  if (channel->isEmpty())
+    server->removeChannel(ch_name);
+}
+
+void CommandHandler::handleTopic(Server* server, Client* client, const Command& cmd)
+{
+  if (!client->IsAuth()) {
+    client->sendMessage("451 :You have not registered");
+    return;
+  }
+  if (cmd.params.empty()) {
+    client->sendMessage("461 TOPIC :Not enough parameters");
+    return;
+  }
+
+  std::string ch_name = cmd.params[0];
+  std::string nick = client->getData().m_nickname;
+  Channel* channel = server->getChannel(ch_name);
+  if (channel == NULL) {
+    client->sendMessage("403 " + ch_name + " :No such channel");
+    return;
+  }
+  if (!channel->hasClient(client)) {
+    client->sendMessage("442 " + ch_name + " :You're not on that channel");
+    return;
+  }
+
+  std::string srv = server->getServerName();
+
+  if (cmd.params.size() == 1 && !cmd.hasTrailing) {
+    if (channel->getTopic().empty())
+      client->sendMessage(":" + srv + " 331 " + nick + " " + ch_name + " :No topic is set");
+    else
+      client->sendMessage(":" + srv + " 332 " + nick + " " + ch_name + " :" + channel->getTopic());
+    return;
+  }
+
+  std::string newTopic;
+  if (cmd.hasTrailing)
+    newTopic = cmd.trailing;
+  else if (cmd.params.size() > 1)
+    newTopic = cmd.params[1];
+
+  if (channel->isTopicRestricted() && !channel->isOperator(client)) {
+    client->sendMessage("482 " + ch_name + " :You're not channel operator");
+    return;
+  }
+
+  channel->setTopic(newTopic);
+  channel->broadcast(getPrefix(client) + " TOPIC " + ch_name + " :" + newTopic, NULL);
+}
+
+void CommandHandler::handleKick(Server* server, Client* client, const Command& cmd)
+{
+  if (!client->IsAuth()) {
+    client->sendMessage("451 :You have not registered");
+    return;
+  }
+  if (cmd.params.size() < 2) {
+    client->sendMessage("461 KICK :Not enough parameters");
+    return;
+  }
+
+  std::string ch_name = cmd.params[0];
+  std::string targetNick = cmd.params[1];
+  std::string reason = client->getData().m_nickname;
+  if (cmd.hasTrailing && !cmd.trailing.empty())
+    reason = cmd.trailing;
+
+  Channel* channel = server->getChannel(ch_name);
+  if (channel == NULL) {
+    client->sendMessage("403 " + ch_name + " :No such channel");
+    return;
+  }
+  if (!channel->hasClient(client)) {
+    client->sendMessage("442 " + ch_name + " :You're not on that channel");
+    return;
+  }
+  if (!channel->isOperator(client)) {
+    client->sendMessage("482 " + ch_name + " :You're not channel operator");
+    return;
+  }
+
+  Client* target = server->getClientByNickname(targetNick);
+  if (target == NULL || !channel->hasClient(target)) {
+    client->sendMessage("401 " + targetNick + " :No such nick/channel");
+    return;
+  }
+
+  channel->broadcast(getPrefix(client) + " KICK " + ch_name + " " + targetNick + " :" + reason, NULL);
+  channel->removeClient(target);
+  channel->removeOperator(target);
+  if (channel->isEmpty())
+    server->removeChannel(ch_name);
+}
+
+void CommandHandler::handleInvite(Server* server, Client* client, const Command& cmd)
+{
+  if (!client->IsAuth()) {
+    client->sendMessage("451 :You have not registered");
+    return;
+  }
+  if (cmd.params.size() < 2) {
+    client->sendMessage("461 INVITE :Not enough parameters");
+    return;
+  }
+
+  std::string targetNick = cmd.params[0];
+  std::string ch_name = cmd.params[1];
+  std::string nick = client->getData().m_nickname;
+  std::string srv = server->getServerName();
+
+  Channel* channel = server->getChannel(ch_name);
+  if (channel == NULL) {
+    client->sendMessage("403 " + ch_name + " :No such channel");
+    return;
+  }
+  if (!channel->hasClient(client)) {
+    client->sendMessage("442 " + ch_name + " :You're not on that channel");
+    return;
+  }
+
+  Client* target = server->getClientByNickname(targetNick);
+  if (target == NULL) {
+    client->sendMessage("401 " + targetNick + " :No such nick/channel");
+    return;
+  }
+  if (channel->hasClient(target)) {
+    client->sendMessage("443 " + targetNick + " " + ch_name + " :is already on channel");
+    return;
+  }
+
+  channel->addInvite(target);
+  target->sendMessage(getPrefix(client) + " INVITE " + targetNick + " :" + ch_name);
+  client->sendMessage(":" + srv + " 341 " + nick + " " + targetNick + " " + ch_name);
+}
+
+void CommandHandler::handlePing(Server* server, Client* client, const Command& cmd)
+{
   (void)server;
-  (void)cmd; 
-  client->sendMessage("QUIT: DOSENT IMPLEMENTED YET");
+  std::string token = "PING";
+  if (cmd.hasTrailing && !cmd.trailing.empty())
+    token = cmd.trailing;
+  else if (!cmd.params.empty())
+    token = cmd.params[0];
+  client->sendMessage(":irc.local PONG irc.local :" + token);
+}
+
+void CommandHandler::handleCap(Server* server, Client* client, const Command& cmd)
+{
+  (void)server;
+  (void)client;
+  (void)cmd;
+}
+
+void CommandHandler::handleMode(Server* server, Client* client, const Command& cmd)
+{
+  if (!client->IsAuth()) {
+    client->sendMessage("451 :You have not registered");
+    return;
+  }
+  if (cmd.params.empty()) {
+    client->sendMessage("461 MODE :Not enough parameters");
+    return;
+  }
+
+  std::string target = cmd.params[0];
+  std::string nick = client->getData().m_nickname;
+  std::string srv = server->getServerName();
+
+  if (target.empty() || target[0] != '#') {
+    client->sendMessage("221 " + nick + " +");
+    return;
+  }
+
+  Channel* channel = server->getChannel(target);
+  if (channel == NULL) {
+    client->sendMessage("403 " + target + " :No such channel");
+    return;
+  }
+  if (!channel->hasClient(client)) {
+    client->sendMessage("442 " + target + " :You're not on that channel");
+    return;
+  }
+
+  if (cmd.params.size() == 1) {
+    std::string modes = "+";
+    std::string args;
+    if (channel->isInviteOnly()) modes += "i";
+    if (channel->isTopicRestricted()) modes += "t";
+    if (!channel->getPassword().empty()) { modes += "k"; args += " " + channel->getPassword(); }
+    if (channel->getUserLimit() > 0) {
+      modes += "l";
+      std::stringstream ss;
+      ss << channel->getUserLimit();
+      args += " " + ss.str();
+    }
+    client->sendMessage(":" + srv + " 324 " + nick + " " + target + " " + modes + args);
+    std::stringstream ct;
+    ct << channel->getCreationTime();
+    client->sendMessage(":" + srv + " 329 " + nick + " " + target + " " + ct.str());
+    return;
+  }
+  if (!channel->isOperator(client)) {
+    client->sendMessage("482 " + target + " :You're not channel operator");
+    return;
+  }
+
+  std::string modeStr = cmd.params[1];
+  size_t paramIdx = 2;
+  char sign = '+';
+  std::string appliedModes;
+  std::string appliedArgs;
+  bool hasChange = false;
+
+  for (size_t i = 0; i < modeStr.size(); ++i) {
+    char c = modeStr[i];
+    if (c == '+' || c == '-') {
+      sign = c;
+      continue;
+    }
+
+    bool adding = (sign == '+');
+
+    if (c == 'o') {
+      if (paramIdx >= cmd.params.size()) continue;
+      std::string targetNick = cmd.params[paramIdx++];
+      Client* target = server->getClientByNickname(targetNick);
+      if (target == NULL || !channel->hasClient(target)) {
+        client->sendMessage("401 " + targetNick + " :No such nick/channel");
+        continue;
+      }
+      if (adding)
+        channel->addOperator(target);
+      else
+        channel->removeOperator(target);
+      appliedModes += sign;
+      appliedModes += c;
+      appliedArgs += " " + targetNick;
+      hasChange = true;
+    }
+    else if (c == 'k') {
+      if (adding) {
+        if (paramIdx >= cmd.params.size()) continue;
+        std::string pass = cmd.params[paramIdx++];
+        channel->setPassword(pass);
+        appliedModes += "+k";
+        appliedArgs += " " + pass;
+      }
+      else {
+        channel->setPassword("");
+        appliedModes += "-k";
+      }
+      hasChange = true;
+    }
+    else if (c == 'l') {
+      if (adding) {
+        if (paramIdx >= cmd.params.size()) continue;
+        std::stringstream ss(cmd.params[paramIdx++]);
+        size_t limit;
+        ss >> limit;
+        channel->setUserLimit(limit);
+        appliedModes += "+l";
+        appliedArgs += " " + cmd.params[paramIdx - 1];
+      }
+      else {
+        channel->setUserLimit(0);
+        appliedModes += "-l";
+      }
+      hasChange = true;
+    }
+    else if (c == 'i') {
+      channel->setInviteOnly(adding);
+      appliedModes += sign;
+      appliedModes += c;
+      hasChange = true;
+    }
+    else if (c == 't') {
+      channel->setTopicRestricted(adding);
+      appliedModes += sign;
+      appliedModes += c;
+      hasChange = true;
+    }
+    else {
+      std::string unknown;
+      unknown += sign;
+      unknown += c;
+      client->sendMessage("472 " + unknown + " :is unknown mode char to me");
+    }
+  }
+
+  if (hasChange)
+    channel->broadcast(getPrefix(client) + " MODE " + target + " " + appliedModes + appliedArgs, NULL);
 }

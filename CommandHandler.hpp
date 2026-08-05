@@ -7,7 +7,7 @@
 #include <iostream>
 #include "Client.hpp"
 #include "tools.hpp"
-// Forward declaration to avoid circular dependency
+
 class Server;
 
 class CommandHandler
@@ -15,8 +15,7 @@ class CommandHandler
 private:
   typedef void (CommandHandler::*CmdFct)(Server*, Client*, const Command &);
   std::map<std::string, CmdFct> m_handle;
-  // hna i addedd 3 member functions 
-  // NICK , USER , QUIT , implementi men be3d
+  
   void handleHelp(Server* server, Client* client, const Command &cmd);
   void handlePass(Server* server, Client* client, const Command &cmd);
   void handleNick(Server* server, Client* client, const Command &cmd);
@@ -24,12 +23,19 @@ private:
   void handleQuit(Server* server, Client* client, const Command &cmd);
   void handleList(Server* server, Client* client, const Command &cmd);
   void handleJoin(Server* server, Client* client, const Command &cmd);
+  void handlePart(Server* server, Client* client, const Command &cmd);
+  void handleTopic(Server* server, Client* client, const Command &cmd);
+  void handleKick(Server* server, Client* client, const Command &cmd);
+  void handleInvite(Server* server, Client* client, const Command &cmd);
+  void handleMode(Server* server, Client* client, const Command &cmd);
+  void handlePing(Server* server, Client* client, const Command &cmd);
+  void handleCap(Server* server, Client* client, const Command &cmd);
   
   void handlePrivmsg(Server* server, Client* client, const Command &cmd);
 public:
   CommandHandler();
   void dispatch(Server* server, Client *client, const Command& cmd);
-  void Checkregistration(Client* client);
+  void Checkregistration(Server* server, Client* client);
   ~CommandHandler(){}
 };
 

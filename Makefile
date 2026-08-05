@@ -24,15 +24,3 @@ run: all clean
 	./$(NAME) 6667 testpassword
 
 .PHONY: all re fclean clean run
-
-
-test_client: test_client.cpp
-	$(CC) $(CFLAGS) test_client.cpp -o test_client
-
-test: all test_client
-	@echo "Starting server in background..."
-	@./$(NAME) 6667 testpassword &
-	@sleep 2
-	@echo "Running test client..."
-	@./test_client || true
-	@echo "Test complete"

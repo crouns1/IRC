@@ -1,37 +1,54 @@
 #include "tools.hpp"
+#include <cctype>
+
+static void uppercase(std::string& str)
+{
+  for (size_t i = 0; i < str.size(); ++i)
+    str[i] = static_cast<char>(std::toupper(static_cast<unsigned char>(str[i])));
+}
 
 Command parser(std::string input)
 {
   Command cmd;
-  size_t trailing = 0;
+  cmd.hasTrailing = false;
+
+
   if (!input.empty() && input[input.size() - 1] == '\n')
     input.erase(input.size() - 1);
   if (!input.empty() && input[input.size() - 1] == '\r')
     input.erase(input.size() - 1);
-  size_t pos = input.find(' ');
-  if (pos == std::string::npos)
-    cmd.name = input;
-  else {
-    cmd.name = input.substr(0, pos);
-    std::string rest = input.substr(pos + 1);
-    trailing = rest.find(":");
-    std::string param;
-    if (trailing == std::string::npos)
+
+  if (!input.empty() && input[0] == ':')
+  {
+    size_t space = input.find(' ');
+    if (space == std::string::npos)
     {
-      std::stringstream ss(rest);
-      while (ss >> param)
-        cmd.params.push_back(param);  
-      cmd.hasTrailing = false;
+      cmd.prefix = input.substr(1);
+      input.clear();
     }
-    else {
-      std::string before = rest.substr(0, trailing);
-      std::stringstream ss(before);
-      while (ss >> param)
-        cmd.params.push_back(param);
-      cmd.trailing = rest.substr(trailing + 1);
-      cmd.hasTrailing = true;
+    else
+    {
+      cmd.prefix = input.substr(1, space - 1);
+      input.erase(0, space + 1);
     }
   }
+
+  size_t colon = input.find(" :");
+  if (colon != std::string::npos)
+  {
+    cmd.trailing = input.substr(colon + 2);
+    cmd.hasTrailing = true;
+    input.erase(colon);
+  }
+
+  std::stringstream ss(input);
+  std::string token;
+  if (ss >> token)
+    cmd.name = token;
+  while (ss >> token)
+    cmd.params.push_back(token);
+
+  uppercase(cmd.name);
   return cmd;
 }
 
