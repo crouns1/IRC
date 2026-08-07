@@ -1,5 +1,5 @@
 NAME = irc_server
-SRC = Server.cpp CommandHandler.cpp parser.cpp main.cpp Client.cpp channel.cpp
+SRC = Server.cpp ServerNet.cpp ServerC.cpp ServerCh.cpp ServerMan.cpp CommandHandler.cpp parser.cpp main.cpp Client.cpp channel.cpp
 OBJS = $(SRC:.cpp=.o)
 CC = c++ 
 CFLAGS = -Wall -Wextra -Werror -g -std=c++98

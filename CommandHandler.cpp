@@ -173,12 +173,7 @@ void CommandHandler::Checkregistration(Server* server, Client* client)
     std::string srv = server->getServerName();
 
     client->sendMessage(":" + srv + " 001 " + nick + " :Welcome to the Internet Relay Network " + nick + "!" + data.m_username + "@" + host);
-    client->sendMessage(":" + srv + " 002 " + nick + " :Your host is " + srv + ", running version ft_irc-1.0");
-    client->sendMessage(":" + srv + " 003 " + nick + " :This server was created at build time");
-    client->sendMessage(":" + srv + " 004 " + nick + " " + srv + " ft_irc-1.0 iotkl bikl");
-    client->sendMessage(":" + srv + " 375 " + nick + " :- " + srv + " Message of the day -");
-    client->sendMessage(":" + srv + " 372 " + nick + " :- Welcome to ft_irc, the 42 project IRC server.");
-    client->sendMessage(":" + srv + " 376 " + nick + " :End of /MOTD command.");
+    client->sendMessage(":" + srv + " 002 " + nick + " :Your host is " + srv);
   }
 }
 void CommandHandler::handleNick(Server* server, Client* client, const Command& cmd)
