@@ -193,11 +193,6 @@ void CommandHandler::Checkregistration(Server* server, Client* client)
 void CommandHandler::handleNick(Server* server, Client* client, const Command& cmd)
 {
   t_ClientData& data = client->getData();
-  if (!data.m_has_pwd)
-  {
-    client->sendMessage("451 :You are not registered (nick)");
-    return;
-  }
   std::string nickname;
   if (!cmd.params.empty())
     nickname = cmd.params[0];
@@ -230,13 +225,18 @@ void CommandHandler::handleNick(Server* server, Client* client, const Command& c
       host = data.m_hostname;
     server->broadcastToChannelsOf(client, ":" + oldNick + "!" + data.m_username + "@" + host + " NICK :" + nickname);
   }
+  // if (!data.m_has_pwd)
+  // {
+  //   client->sendMessage("451 :You are not registered (nick)");
+  //   return;
+  // }
   Checkregistration(server, client);
 }
 
 void CommandHandler::handleJoin(Server* server, Client* client, const Command& cmd)
 {
   if (!client->IsAuth()) {
-    client->sendMessage("451 :You have not registered(join)");
+    client->sendMessage("451 :You have not registered/auth(join)");
     return;
   }
   if (cmd.params.empty()) {
