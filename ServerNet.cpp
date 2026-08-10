@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <cerrno>
 #define BUFFER_SIZE 1024
 #define MAX_CLIENTS 100
 int g_sd  = 0;
