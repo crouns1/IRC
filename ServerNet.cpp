@@ -7,10 +7,18 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
+#include <signal.h>
+#include <stdlib.h>
 #define BUFFER_SIZE 1024
 #define MAX_CLIENTS 100
+int g_sd  = 0;
 
+
+void siginthandler(int sig) {
+    (void)sig;
+    g_sd = 1;
+
+}
 bool Server::initSocket() {
     m_serverFd = socket(AF_INET, SOCK_STREAM, 0);
     if (m_serverFd < 0) {
@@ -51,11 +59,12 @@ bool Server::initSocket() {
 }
 
 void Server::run() {
+    signal(SIGINT , siginthandler);
     if (!initSocket()) {
         return;
     }
 
-    while (true) {
+    while (!g_sd) {
         for (std::map<int, Client*>::iterator it = m_clients.begin(); it != m_clients.end(); ++it) {
             if (!it->second->getWriteBuffer().empty())
                 FD_SET(it->first, &m_writeFds);
@@ -67,6 +76,9 @@ void Server::run() {
         int activity = select(m_maxFd + 1, &readFds, &writeFds, NULL, NULL);
 
         if (activity < 0) {
+            if(errno == EINTR) {
+                exit(130); 
+            }
             std::cerr << "select() error" << std::endl;
             continue;
         }
