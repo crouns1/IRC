@@ -11,8 +11,16 @@ void Server::removeChannel(const std::string& name) {
 
 void Server::removeClientFromChannels(Client* client, const std::string& reason) {
     t_ClientData& data = client->getData();
-    std::string nick = data.m_nickname.empty() ? "*" : data.m_nickname;
-    std::string host = data.m_hostname.empty() ? "127.0.0.1" : data.m_hostname;
+    std::string nick;
+    if (data.m_nickname.empty())
+        nick = "*";
+    else 
+        nick = data.m_nickname;
+    std::string host;
+    if (data.m_hostname.empty())
+        host = "127.0.0.1";
+    else 
+        host = data.m_hostname;
     std::string quitMsg = ":" + nick + "!" + data.m_username + "@" + host + " QUIT :" + reason;
 
     std::vector<std::string> emptyChannels;

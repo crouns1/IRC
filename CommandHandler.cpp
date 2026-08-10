@@ -21,8 +21,18 @@ static bool isValidNickname(const std::string& nick)
 static std::string getPrefix(Client* client)
 {
   t_ClientData& d = client->getData();
-  std::string nick = d.m_nickname.empty() ? "*" : d.m_nickname;
-  std::string host = d.m_hostname.empty() ? "127.0.0.1" : d.m_hostname;
+  std::string nick;
+  std::string host;
+
+  if (d.m_nickname.empty())
+    nick  = "*";
+  else
+    nick = d.m_nickname;
+
+  if (d.m_hostname.empty())
+    host = "127.0.0.1";
+  else 
+    host = d.m_hostname;
   return ":" + nick + "!" + d.m_username + "@" + host;
 }
 
@@ -132,7 +142,7 @@ void CommandHandler::handlePass(Server* server, Client *client, const Command& c
 {
   if (client->IsAuth())
   {
-    client->sendMessage("462 :You may not reregister");
+    client->sendMessage("462 :You may not reregister(pass)");
     return ; 
   }
   
@@ -169,7 +179,11 @@ void CommandHandler::Checkregistration(Server* server, Client* client)
   {
     data.m_Auth = true;
     std::string nick = data.m_nickname;
-    std::string host = data.m_hostname.empty() ? "127.0.0.1" : data.m_hostname;
+    std::string host;
+    if(data.m_hostname.empty())
+      host = "127.0.0.1";
+    else 
+      host = data.m_hostname;
     std::string srv = server->getServerName();
 
     client->sendMessage(":" + srv + " 001 " + nick + " :Welcome to the Internet Relay Network " + nick + "!" + data.m_username + "@" + host);
@@ -181,7 +195,7 @@ void CommandHandler::handleNick(Server* server, Client* client, const Command& c
   t_ClientData& data = client->getData();
   if (!data.m_has_pwd)
   {
-    client->sendMessage("451 :You are not registered");
+    client->sendMessage("451 :You are not registered (nick)");
     return;
   }
   std::string nickname;
@@ -209,7 +223,11 @@ void CommandHandler::handleNick(Server* server, Client* client, const Command& c
 
   if (changing)
   {
-    std::string host = data.m_hostname.empty() ? "127.0.0.1" : data.m_hostname;
+    std::string host;
+    if (data.m_hostname.empty())
+      host =  "127.0.0.1";
+    else 
+      host = data.m_hostname;
     server->broadcastToChannelsOf(client, ":" + oldNick + "!" + data.m_username + "@" + host + " NICK :" + nickname);
   }
   Checkregistration(server, client);
@@ -218,7 +236,7 @@ void CommandHandler::handleNick(Server* server, Client* client, const Command& c
 void CommandHandler::handleJoin(Server* server, Client* client, const Command& cmd)
 {
   if (!client->IsAuth()) {
-    client->sendMessage("451 :You have not registered");
+    client->sendMessage("451 :You have not registered(join)");
     return;
   }
   if (cmd.params.empty()) {
@@ -287,11 +305,7 @@ void CommandHandler::handleUser(Server* server, Client* client, const Command& c
     t_ClientData& data = client->getData();
 
     if (client->IsAuth()) {
-        client->sendMessage("462 :You may not reregister");
-        return;
-    }
-    if (!data.m_has_pwd) {
-        client->sendMessage("451 :You have not registered");
+        client->sendMessage("462 :You may not reregister(user)");
         return;
     }
     if (cmd.params.size() < 3 || (!cmd.hasTrailing && cmd.params.size() < 4)) {
@@ -507,8 +521,26 @@ void CommandHandler::handlePing(Server* server, Client* client, const Command& c
 void CommandHandler::handleCap(Server* server, Client* client, const Command& cmd)
 {
   (void)server;
-  (void)client;
-  (void)cmd;
+
+  if (cmd.params.empty())
+    return;
+
+  const std::string& subcommand = cmd.params[0];
+  if (subcommand == "LS")
+  {
+    client->sendMessage(":irc.local CAP * LS :");
+    return;
+  }
+  if (subcommand == "END")
+    return;
+
+  if (subcommand == "REQ")
+  {
+    client->sendMessage(":irc.local CAP * NAK :");
+    return;
+  }
+
+  client->sendMessage(":irc.local CAP * LS :");
 }
 
 void CommandHandler::handleMode(Server* server, Client* client, const Command& cmd)

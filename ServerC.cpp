@@ -54,6 +54,7 @@ void Server::handleClientData(int clientFd) {
     }
 
     if (client->shouldDisconnect()) {
+        std::cout << "you are here" << std::endl;
         cleanupClient(clientFd);
     }
 }
@@ -74,6 +75,8 @@ void Server::cleanupClient(int clientFd) {
     FD_CLR(clientFd, &m_readFds);
     FD_CLR(clientFd, &m_writeFds);
 
+    shutdown(clientFd, SHUT_WR);
+    usleep(100000);
     close(clientFd);
 
     if (client) {
