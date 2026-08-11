@@ -78,7 +78,7 @@ void Server::run() {
         int activity = select(m_maxFd + 1, &readFds, &writeFds, NULL, NULL);
 
         if (activity < 0) {
-            if(errno == EINTR) {
+            if(g_sd == 1) {
                 break; 
             }
             std::cerr << "select() error" << std::endl;

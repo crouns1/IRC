@@ -1,7 +1,6 @@
 #include "Server.hpp"
 #include <iostream>
 #include <cstring>
-#include <cerrno>
 #include <unistd.h>
 #include <sys/socket.h>
 
@@ -14,8 +13,8 @@ void Server::handleClientData(int clientFd) {
     ssize_t bytes = recv(clientFd, buffer, BUFFER_SIZE - 1, 0);
 
     if (bytes < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-            return;
+        // if (errno == EAGAIN || errno == EWOULDBLOCK)
+        //     return;
         cleanupClient(clientFd);
         return;
     }
@@ -97,17 +96,21 @@ bool Server::flushClientWrites(int clientFd) {
         return false;
 
     std::string& wbuf = client->getWriteBuffer();
-    while (!wbuf.empty()) {
-        ssize_t sent = send(clientFd, wbuf.c_str(), wbuf.size(), MSG_NOSIGNAL);
-        if (sent < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-                return true;
-            return false;
-        }
-        wbuf.erase(0, static_cast<size_t>(sent));
+    if (wbuf.empty()) {
+        FD_CLR(clientFd, &m_writeFds);
+        return true;
     }
 
-    FD_CLR(clientFd, &m_writeFds);
+    ssize_t sent = send(clientFd, wbuf.c_str(), wbuf.size(), MSG_NOSIGNAL);
+    
+    if (sent <= 0) {
+        return false;
+    }
+    wbuf.erase(0, static_cast<size_t>(sent));
+    if (wbuf.empty()) {
+        FD_CLR(clientFd, &m_writeFds);
+    }
+
     return true;
 }
 
