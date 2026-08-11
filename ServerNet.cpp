@@ -64,7 +64,6 @@ void Server::run() {
     if (!initSocket()) {
         return;
     }
-
     while (!g_sd) {
         for (std::map<int, Client*>::iterator it = m_clients.begin(); it != m_clients.end(); ++it) {
             if (!it->second->getWriteBuffer().empty())
