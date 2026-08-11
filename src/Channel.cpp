@@ -1,4 +1,4 @@
-#include "channel.hpp"
+#include "Channel.hpp"
 
 Channel::Channel(const t_channel s_ch, size_t userlimit)
 {
@@ -6,8 +6,27 @@ Channel::Channel(const t_channel s_ch, size_t userlimit)
   m_userLimit = userlimit;
   m_creationTime = std::time(NULL);
 }
+
 Channel::~Channel()
 {}
+
+
+void Channel::addClient(Client* client)
+{
+  m_members[client->getFd()] = client;
+}
+
+void Channel::removeClient(Client* client)
+{
+  m_members.erase(client->getFd());
+}
+
+bool Channel::hasClient(Client* client) const
+{
+  return m_members.find(client->getFd()) != m_members.end();
+}
+
+
 
 void Channel::broadcast(const std::string& message, Client* sender)
 {

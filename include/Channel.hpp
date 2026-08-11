@@ -7,7 +7,6 @@
 #include <ctime>
 #include "Client.hpp"
 
-
 struct t_channel {
   std::string s_name;
   std::string s_topic;
@@ -19,31 +18,21 @@ struct t_channel {
 class Channel {
 private:
     t_channel m_ch;
-    std::map<int, Client*> m_members;   
-    std::map<int, Client*> m_operators;  
+    std::map<int, Client*> m_members;
+    std::map<int, Client*> m_operators;
     std::map<int, Client*> m_invited;
 
     size_t m_userLimit;
-    time_t m_creationTime;     
+    time_t m_creationTime;
 
 public:
     Channel(const t_channel s_ch, size_t userlimit);
     ~Channel();
 
-    
-    void addClient(Client* client)
-	{
-		m_members[client->getFd()] = client;
-	}
-    void removeClient(Client* client)
-	{
-		m_members.erase(client->getFd());
-	}
-    bool hasClient(Client* client) const
-    {
-		return m_members.find(client->getFd()) != m_members.end();
-	}
-    
+    void addClient(Client* client);
+    void removeClient(Client* client);
+    bool hasClient(Client* client) const;
+
     void addOperator(Client* client);
     void removeOperator(Client* client);
     bool isOperator(Client* client) const;
@@ -52,7 +41,6 @@ public:
     int getMemberCount() const;
     const std::string& getName() const;
     std::vector<std::string> getMemberList() const;
-
 
     bool isInviteOnly() const;
     void setInviteOnly(bool value);
@@ -70,10 +58,7 @@ public:
     void removeInvite(Client* client);
     bool isInvited(Client* client) const;
 
-   
     void broadcast(const std::string& message, Client* sender);
-    
-    
 };
 
 #endif

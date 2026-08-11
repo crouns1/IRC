@@ -1,26 +1,52 @@
-NAME = irc_server
-SRC = Server.cpp ServerNet.cpp ServerC.cpp ServerCh.cpp ServerMan.cpp CommandHandler.cpp parser.cpp main.cpp Client.cpp channel.cpp
-OBJS = $(SRC:.cpp=.o)
-CC = c++ 
-CFLAGS = -Wall -Wextra -Werror -g -std=c++98
+NAME		= ircserv
+
+CXX			= c++
+CXXFLAGS	= -Wall -Wextra -Werror -std=c++98
+INCLUDES	= -I include
+
+SRC_DIR		= src
+OBJ_DIR		= obj
+HEADERS_DIR = include
+
+SRC			= $(SRC_DIR)/main.cpp \
+			  $(SRC_DIR)/Server.cpp \
+			  $(SRC_DIR)/ServerNet.cpp \
+			  $(SRC_DIR)/ServerC.cpp \
+			  $(SRC_DIR)/ServerCh.cpp \
+			  $(SRC_DIR)/ServerMan.cpp \
+			  $(SRC_DIR)/CommandHandler.cpp \
+			  $(SRC_DIR)/parser.cpp \
+			  $(SRC_DIR)/Client.cpp \
+			  $(SRC_DIR)/Channel.cpp
+
+OBJ			= $(SRC:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
+
+HEADERS		= $(HEADERS_DIR)/Channel.hpp \
+					$(HEADERS_DIR)/Client.hpp \
+					$(HEADERS_DIR)/CommandHandler.hpp \
+					$(HEADERS_DIR)/Server.hpp \
+					$(HEADERS_DIR)/Tools.hpp
 
 all: $(NAME)
 
-$(NAME): $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o $(NAME)
+$(NAME): $(OBJ)
+	$(CXX) $(CXXFLAGS) $(OBJ) -o $(NAME)
 
-%.o:%.cpp *.hpp
-	$(CC) $(CFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(HEADERS) | $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+$(OBJ_DIR):
+	mkdir -p $(OBJ_DIR)
 
 clean:
-	rm -rf $(OBJS)
+	rm -rf $(OBJ_DIR)
 
-fclean: clean 
-	rm -rf $(NAME)
+fclean: clean
+	rm -f $(NAME)
 
-re: fclean all 
+re: fclean all
 
-run: all clean
+run: all
 	./$(NAME) 6667 testpassword
 
-.PHONY: all re fclean clean run
+.PHONY: all clean fclean re run

@@ -1,3 +1,4 @@
+
 #include "Server.hpp"
 #include <iostream>
 #include <cstring>
@@ -10,16 +11,17 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <cerrno>
+
 #define BUFFER_SIZE 1024
 #define MAX_CLIENTS 100
-int g_sd  = 0;
 
+int g_sd  = 0;
 
 void siginthandler(int sig) {
     (void)sig;
     g_sd = 1;
-
 }
+
 bool Server::initSocket() {
     m_serverFd = socket(AF_INET, SOCK_STREAM, 0);
     if (m_serverFd < 0) {
@@ -77,7 +79,7 @@ void Server::run() {
 
         if (activity < 0) {
             if(errno == EINTR) {
-                exit(130); 
+                break; 
             }
             std::cerr << "select() error" << std::endl;
             continue;
@@ -126,9 +128,11 @@ void Server::acceptNewClient() {
         close(clientFd);
         return;
     }
-
-    // int flags = fcntl(clientFd, F_GETFL, 0);
-    fcntl(clientFd, F_SETFL, O_NONBLOCK);
+    int flags = fcntl(clientFd, F_GETFL, 0);
+    if (flags >= 0)
+        fcntl(clientFd, F_SETFL, flags | O_NONBLOCK);
+    else
+        fcntl(clientFd, F_SETFL, O_NONBLOCK);
 
     char ipStr[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &clientAddr.sin_addr, ipStr, INET_ADDRSTRLEN);

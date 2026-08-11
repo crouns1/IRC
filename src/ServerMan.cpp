@@ -25,6 +25,15 @@ bool Server::isNicknameInUse(const std::string& nickname) {
     return false;
 }
 
+bool Server::isNicknameInUse(const std::string& nickname, Client* exclude) {
+    for (std::map<int, Client*>::iterator it = m_clients.begin(); it != m_clients.end(); ++it) {
+        if (it->second != exclude && it->second->getData().m_nickname == nickname) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void Server::printList() {
     for (std::map<int, Client*>::iterator it = m_clients.begin(); it != m_clients.end(); ++it) {
         it->second->sendMessage(it->second->getData().m_username);

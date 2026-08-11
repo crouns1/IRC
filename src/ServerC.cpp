@@ -23,8 +23,7 @@ void Server::handleClientData(int clientFd) {
         cleanupClient(clientFd);
         return;
     }
-
-    std::string input(buffer);
+    std::string input(buffer, static_cast<size_t>(bytes));
 
     Client* client = m_clients[clientFd];
     if (!client) return;
@@ -47,14 +46,13 @@ void Server::handleClientData(int clientFd) {
 
         Command cmd = parser(rawCmd);
 
-        CommandHandler handler;
-        handler.dispatch(this, client, cmd);
+        // FIX #11: use server's single CommandHandler instance
+        m_cmdHandler.dispatch(this, client, cmd);
 
         currentBuffer = client->getReadBuffer();
     }
 
     if (client->shouldDisconnect()) {
-        std::cout << "you are here" << std::endl;
         cleanupClient(clientFd);
     }
 }
@@ -76,7 +74,6 @@ void Server::cleanupClient(int clientFd) {
     FD_CLR(clientFd, &m_writeFds);
 
     shutdown(clientFd, SHUT_WR);
-    usleep(100000);
     close(clientFd);
 
     if (client) {
@@ -99,15 +96,15 @@ bool Server::flushClientWrites(int clientFd) {
     if (!client)
         return false;
 
-    std::string& buffer = client->getWriteBuffer();
-    while (!buffer.empty()) {
-        ssize_t sent = send(clientFd, buffer.c_str(), buffer.size(), MSG_NOSIGNAL);
+    std::string& wbuf = client->getWriteBuffer();
+    while (!wbuf.empty()) {
+        ssize_t sent = send(clientFd, wbuf.c_str(), wbuf.size(), MSG_NOSIGNAL);
         if (sent < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK)
                 return true;
             return false;
         }
-        buffer.erase(0, static_cast<size_t>(sent));
+        wbuf.erase(0, static_cast<size_t>(sent));
     }
 
     FD_CLR(clientFd, &m_writeFds);

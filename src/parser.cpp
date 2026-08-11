@@ -1,4 +1,4 @@
-#include "tools.hpp"
+#include "Tools.hpp"
 #include <cctype>
 
 static void uppercase(std::string& str)
@@ -11,7 +11,6 @@ Command parser(std::string input)
 {
   Command cmd;
   cmd.hasTrailing = false;
-
 
   if (!input.empty() && input[input.size() - 1] == '\n')
     input.erase(input.size() - 1);
@@ -55,17 +54,15 @@ Command parser(std::string input)
 void printstruct(Command& cmd)
 {
   std::cout << "Name: " << cmd.name << std::endl;
-  std::cout << "Prams: ";
+  std::cout << "Params: ";
   for (std::vector<std::string>::iterator it = cmd.params.begin(); it != cmd.params.end(); it++)
   {
     std::cout << *it << " ";
   }
   std::cout<< std::endl;
-  std::cout << "traling: " << cmd.hasTrailing << std::endl;
+  std::cout << "hasTrailing: " << cmd.hasTrailing << std::endl;
   if (cmd.hasTrailing)
   {
     std::cout << "trailing: " << cmd.trailing << std::endl;
   }
 }
-
-

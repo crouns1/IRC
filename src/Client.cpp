@@ -2,7 +2,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <iostream>
-#include "tools.hpp"
+#include "Tools.hpp"
 
 Client::Client(int fd, std::string ip_address)
 {
@@ -12,7 +12,8 @@ Client::Client(int fd, std::string ip_address)
   this->m_disconnect = false;
   std::cout << "Client is Set and Ready"<< std::endl;
 }
-int Client::getFd() const 
+
+int Client::getFd() const
 {
   return m_fd;
 }
@@ -29,6 +30,7 @@ void Client::setData(t_ClientData& cltdata)
   m_data.m_realname = cltdata.m_realname;
   m_data.m_hostname = cltdata.m_hostname;
 }
+
 int Client::IsAuth()
 {
   return m_data.m_Auth;
@@ -38,17 +40,11 @@ void Client::setAuth(bool auth)
 {
   this->m_data.m_Auth = auth;
 }
-// had lpart rah kenti dayrha f lclass client 
-// ms knti dayrha katsift msg l stdout bhal hka sendmsg { "sending msg to client << m_fd" << ekatbee3 lmsg}
-// normallement khass lmsg itsift directly l client machui output
-// messages are queued and flushed by the server (non-blocking writes)
 int Client::sendMessage(const std::string& message) {
     m_write_buffer += message + "\r\n";
-    std::cout << "Queueing to client " << m_fd << ": " << BLUE << message << std::endl;
+    std::cout << "Queueing to client " << m_fd << ": " << BLUE << message << RESET << std::endl;
     return 0;
 }
-
-// Add these to the bottom of Client.cpp
 
 std::string Client::getReadBuffer() const {
     return m_read_buffer;

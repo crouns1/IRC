@@ -8,18 +8,38 @@ void Server::removeChannel(const std::string& name) {
         m_channels.erase(it);
     }
 }
+Channel* Server::getChannel(const std::string& name)
+{
+    std::map<std::string, Channel*>::iterator it = m_channels.find(name);
+    if (it != m_channels.end())
+        return it->second;
+    return NULL;
+}
+
+Channel* Server::createChannel(const std::string& name)
+{
+    t_channel ch;
+    ch.s_name = name;
+    ch.s_topic = "";
+    ch.s_invOnl = false;
+    ch.s_topicRest = false;
+    ch.s_password = "";
+    Channel* chan = new Channel(ch, 0);
+    m_channels[name] = chan;
+    return chan;
+}
 
 void Server::removeClientFromChannels(Client* client, const std::string& reason) {
     t_ClientData& data = client->getData();
     std::string nick;
     if (data.m_nickname.empty())
         nick = "*";
-    else 
+    else
         nick = data.m_nickname;
     std::string host;
     if (data.m_hostname.empty())
         host = "127.0.0.1";
-    else 
+    else
         host = data.m_hostname;
     std::string quitMsg = ":" + nick + "!" + data.m_username + "@" + host + " QUIT :" + reason;
 
