@@ -127,8 +127,8 @@ void Server::acceptNewClient() {
         return;
     }
 
-    int flags = fcntl(clientFd, F_GETFL, 0);
-    fcntl(clientFd, F_SETFL, flags | O_NONBLOCK);
+    // int flags = fcntl(clientFd, F_GETFL, 0);
+    fcntl(clientFd, F_SETFL, O_NONBLOCK);
 
     char ipStr[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &clientAddr.sin_addr, ipStr, INET_ADDRSTRLEN);
