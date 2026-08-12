@@ -13,8 +13,6 @@ void Server::handleClientData(int clientFd) {
     ssize_t bytes = recv(clientFd, buffer, BUFFER_SIZE - 1, 0);
 
     if (bytes < 0) {
-        // if (errno == EAGAIN || errno == EWOULDBLOCK)
-        //     return;
         cleanupClient(clientFd);
         return;
     }
@@ -44,8 +42,6 @@ void Server::handleClientData(int clientFd) {
         client->setReadBuffer(currentBuffer);
 
         Command cmd = parser(rawCmd);
-
-        // FIX #11: use server's single CommandHandler instance
         m_cmdHandler.dispatch(this, client, cmd);
 
         currentBuffer = client->getReadBuffer();

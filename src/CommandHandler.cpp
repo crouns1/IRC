@@ -43,7 +43,6 @@ CommandHandler::CommandHandler()
   m_handle["NICK"] = &CommandHandler::handleNick;
   m_handle["USER"] = &CommandHandler::handleUser;
   m_handle["QUIT"] = &CommandHandler::handleQuit;
-  m_handle["LIST"] = &CommandHandler::handleList;
   m_handle["PRIVMSG"] = &CommandHandler::handlePrivmsg;
   m_handle["JOIN"] = &CommandHandler::handleJoin;
   m_handle["TOPIC"] = &CommandHandler::handleTopic;
@@ -611,13 +610,6 @@ void CommandHandler::handleHelp(Server* server, Client* client, const Command &c
     client->sendMessage("HELP is used to get the list of available commands");
   else
     client->sendMessage("421 " + cmd.params[0] + " :Unknown command");
-}
-
-void CommandHandler::handleList(Server* server, Client* client, const Command& cmd)
-{
-  (void)client;
-  (void)cmd;
-  server->printList();
 }
 
 

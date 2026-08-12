@@ -21,10 +21,8 @@ private:
   void handleNick(Server* server, Client* client, const Command &cmd);
   void handleUser(Server* server, Client* client, const Command &cmd);
   void Checkregistration(Server* server, Client* client);
-
   void handleHelp(Server* server, Client* client, const Command &cmd);
   void handleQuit(Server* server, Client* client, const Command &cmd);
-  void handleList(Server* server, Client* client, const Command &cmd);
   void handleJoin(Server* server, Client* client, const Command &cmd);
   void handleTopic(Server* server, Client* client, const Command &cmd);
   void handleKick(Server* server, Client* client, const Command &cmd);

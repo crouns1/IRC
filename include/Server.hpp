@@ -64,7 +64,7 @@ public:
 
 
     Client* getClient(int fd);
-    void printList();
+
     Client* getClientByNickname(const std::string& nickname);
 
 
