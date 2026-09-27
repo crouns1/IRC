@@ -1,5 +1,4 @@
 #include "Server.hpp"
-#include <iostream>
 
 bool Server::validatePassword(const std::string& password) {
     return password == m_serverPassword;

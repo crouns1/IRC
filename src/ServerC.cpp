@@ -1,8 +1,4 @@
 #include "Server.hpp"
-#include <iostream>
-#include <cstring>
-#include <unistd.h>
-#include <sys/socket.h>
 
 #define BUFFER_SIZE 1024
 
@@ -12,14 +8,11 @@ void Server::handleClientData(int clientFd) {
 
     ssize_t bytes = recv(clientFd, buffer, BUFFER_SIZE - 1, 0);
 
-    if (bytes < 0) {
+    if (bytes <= 0) {
         cleanupClient(clientFd);
         return;
     }
-    if (bytes == 0) {
-        cleanupClient(clientFd);
-        return;
-    }
+
     std::string input(buffer, static_cast<size_t>(bytes));
 
     Client* client = m_clients[clientFd];
@@ -68,7 +61,6 @@ void Server::cleanupClient(int clientFd) {
     FD_CLR(clientFd, &m_readFds);
     FD_CLR(clientFd, &m_writeFds);
 
-    shutdown(clientFd, SHUT_WR);
     close(clientFd);
 
     if (client) {

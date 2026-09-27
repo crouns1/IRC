@@ -1,6 +1,4 @@
 #include "Server.hpp"
-#include <iostream>
-#include <unistd.h>
 
 Server::Server(int port, const std::string& password)
     : m_port(port), m_serverPassword(password), m_serverName("irc.local"), m_serverFd(-1), m_maxFd(0) {

@@ -1,5 +1,4 @@
 #include "Server.hpp"
-#include <vector>
 
 void Server::removeChannel(const std::string& name) {
     std::map<std::string, Channel*>::iterator it = m_channels.find(name);

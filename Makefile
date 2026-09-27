@@ -46,7 +46,4 @@ fclean: clean
 
 re: fclean all
 
-run: all
-	./$(NAME) 6667 testpassword
-
-.PHONY: all clean fclean re run
+.PHONY: all clean fclean re

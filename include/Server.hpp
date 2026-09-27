@@ -5,10 +5,23 @@
 #include <vector>
 #include <map>
 #include <sys/select.h>
+#include <cstring>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <signal.h>
+
+
 #include "Client.hpp"
-#include "Tools.hpp"
 #include "CommandHandler.hpp"
 #include "Channel.hpp"
+
+
+#define BUFFER_SIZE 1024
+#define MAX_CLIENTS 100
+
 
 class Server {
 private:

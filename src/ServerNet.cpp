@@ -1,26 +1,13 @@
 
 #include "Server.hpp"
-#include <iostream>
-#include <cstring>
-#include <fcntl.h>
-#include <vector>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <signal.h>
-#include <stdlib.h>
-
-
-#define BUFFER_SIZE 1024
-#define MAX_CLIENTS 100
 
 int g_sd  = 0;
 
-void siginthandler(int sig) {
+void handler(int sig) {
     (void)sig;
     g_sd = 1;
 }
+
 
 bool Server::initSocket() {
     m_serverFd = socket(AF_INET, SOCK_STREAM, 0);
@@ -37,7 +24,7 @@ bool Server::initSocket() {
     }
 
     sockaddr_in addr;
-    std::memset(&addr, 0, sizeof(addr));
+    memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(m_port);
@@ -62,7 +49,8 @@ bool Server::initSocket() {
 }
 
 void Server::run() {
-    signal(SIGINT , siginthandler);
+    signal(SIGINT , handler);
+    signal(SIGTSTP, handler);
     if (!initSocket()) {
         return;
     }
@@ -78,7 +66,7 @@ void Server::run() {
         int activity = select(m_maxFd + 1, &readFds, &writeFds, NULL, NULL);
 
         if (activity < 0) {
-            if(g_sd == 1) {
+            if(g_sd == 1 ) {
                 break; 
             }
             std::cerr << "select() error" << std::endl;
@@ -124,15 +112,12 @@ void Server::acceptNewClient() {
 
     if (m_clients.size() >= MAX_CLIENTS) {
         const char* msg = "ERROR :Server is full\r\n";
-        send(clientFd, msg, std::strlen(msg), MSG_NOSIGNAL);
+        send(clientFd, msg, strlen(msg), MSG_NOSIGNAL);
         close(clientFd);
         return;
     }
-    int flags = fcntl(clientFd, F_GETFL, 0);
-    if (flags >= 0)
-        fcntl(clientFd, F_SETFL, flags | O_NONBLOCK);
-    else
-        fcntl(clientFd, F_SETFL, O_NONBLOCK);
+   
+    fcntl(clientFd, F_SETFL, O_NONBLOCK);
 
     char ipStr[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &clientAddr.sin_addr, ipStr, INET_ADDRSTRLEN);
